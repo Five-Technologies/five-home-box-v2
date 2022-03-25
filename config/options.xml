@@ -6,13 +6,13 @@
   <Option name="logging" value="true" />
   
   <!-- Should we Output Log Messages on the Console. Set to True for Foreground Processes -->
-  <!-- <Option name="ConsoleOutput" value="false" /> -->
+  <!-- <Option name="ConsoleOutput" value="true" /> -->
   
   <!-- The Name of the Log File -->
-  <!-- <Option name="LogFileName" value="OZW_Log.txt" /> -->
+  <Option name="LogFileName" value="OZW.log" />
   
   <!-- Should we create a new Log File on start, or append to a Log File if it exists -->
-  <!-- <Option name="AppendLogFile" value="false" /> -->
+  <Option name="AppendLogFile" value="false" />
   
   <!-- Should we automatically associate the Controller Node with devices Lifeline Group (or other groups marked as Auto) -->
   <Option name="Associate" value="true" />
@@ -48,7 +48,7 @@
   <Option name="ThreadTerminateTimeout" value="5000" />
 
   <!-- Language we should use for ValueID Labels and Help Text -->
-  <!-- <Option name="Language" value="fr" /> -->
+  <Option name="Language" value="fr" />
   
   <!-- Should we assume all devices are awake upon Startup - 
   This can help getting some Sleeping Devices online faster in limited cases -->
@@ -63,13 +63,19 @@
   <!-- <Option name="EnforceSecureReception" value="false" /> -->
   
   <!-- Should OZW automatically download new Config File Versions. Default is true -->
-  <!-- <Option name="AutoUpdateConfigFile" value="false" /> -->
+  <Option name="AutoUpdateConfigFile" value="true" />
   
   <!-- When we have a new config file for a device, This determine when a device is reloaded 
   so the new connfig file is affected on the device -->
-  <!-- <Option name="ReloadAfterUpdate" value="NEVER" /> -->
+  <Option name="ReloadAfterUpdate" value="ALWAYS" />
   
   <!-- Should OZW include any Instance Labels on ValueID Labels -->
   <!-- <Option name="IncludeInstanceLabel" value="false" /> -->
-  
+
+  <Option name="SaveLogLevel" value=LogLevel_Detail />
+  <Option name="QueueLogLevel" value=LogLevel_Debug />
+  <Option name="DumpTrigger" value=LogLevel_None />
+  <Option name="PollInterval" value=500 />
+  <Option name="IntervalBetweenPolls" value=true />
+  <Option name="ValidateValueChanges" value=true />
 </Options>

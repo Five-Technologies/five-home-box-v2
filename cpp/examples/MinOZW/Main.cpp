@@ -75,6 +75,8 @@
 // {
 // 	uint32 const homeId = _notification->GetHomeId();
 // 	uint8 const nodeId = _notification->GetNodeId();
+// 	uint8 x{ 3 };
+// 	cout << "------------ NODE IDDDDDD: " << unsigned(x) << endl;
 // 	for( list<NodeInfo*>::iterator it = g_nodes.begin(); it != g_nodes.end(); ++it )
 // 	{
 // 		NodeInfo* nodeInfo = *it;
@@ -99,8 +101,8 @@
 // {
 // 	// Must do this inside a critical section to avoid conflicts with the main thread
 // 	pthread_mutex_lock( &g_criticalSection );
-	//NodeInfo* nodeInfo = GetNodeInfo(_notification);
-	//cout << _notification->GetType() << "was sent by NodeId:" << *nodeInfo << endl;
+// 	NodeInfo* nodeInfo = GetNodeInfo(_notification);
+// 	// cout << _notification->GetType() << "was sent by NodeId:" << *nodeInfo << endl;
 
 // //	std::cout << "Notification: " << _notification << std::endl;
 
@@ -320,7 +322,7 @@
 // #elif WIN32
 //         string port = "\\\\.\\COM6";
 // #else
-// 	string port = "/dev/ttyUSB0";
+// 	string port = "/dev/ttyACM0";
 // #endif
 // 	if ( argc > 1 )
 // 	{
@@ -431,12 +433,29 @@
 // 	return 0;
 // }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #include <iostream>
 #include "Manager.h"
 #include "Options.h"
 #include "Notification.h"
+#include "platform/Log.h"
+#include <thread>
 
 using namespace OpenZWave;
+using namespace std;
 
 static uint32 g_homeId = 0;
 static bool   g_initFailed = false;
@@ -447,12 +466,16 @@ typedef struct
 	uint8			m_nodeId;
 	bool			m_polled;
 	list<ValueID>	m_values;
+	string			m_name;
+	string			m_nodeType;
+
  }NodeInfo;
 
 static list<NodeInfo*> g_nodes;
 static pthread_mutex_t g_criticalSection;
 static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
+static bool g_menuLocked{ true };
 
 NodeInfo* GetNodeInfo
 (
@@ -470,41 +493,187 @@ NodeInfo* GetNodeInfo
 		}
 	}
 
-	printf("NOTHING");
-
 	return NULL;
 }
 
 void OnNotification(Notification const* _notification, void* context)
 {
-	pthread_mutex_lock(&g_criticalSection);
-	cout << "---- NOTIFICATION: ----\n";
-	cout << "Type: " << _notification->GetType() << '\n';
-	cout << "HomeId: " << _notification->GetHomeId() << '\n';
-	cout << "NodeId: " << _notification->GetNodeId() << '\n';
-	cout << "Number of nodes: " << g_nodes.size() << '\n';
+	pthread_mutex_lock(&g_criticalSection); // lock critical section
 
-	cout << "Type: ";
+	if (g_homeId == 0)
+		g_homeId = _notification->GetHomeId();
+
+	// cout << "Before AddNode()\n";
+	// if (g_homeId != 0)
+	// {
+	// 	// uint32 const homeId = 3700699877;
+	// 	cout << "In condition\n";
+	// 	Manager::Get()->AddNode(g_homeId);
+	// 	cout << "After condition\n";
+	// }
+	// cout << "After AddNode()\n";
+	
+	// cout << "---- NOTIFICATION: ----\n";
+	// cout << "Type: " << _notification->GetType() << '\n';
+	// cout << "HomeId: " << _notification->GetHomeId() << '\n';
+	// cout << "NodeId: " << _notification->GetNodeId() << '\n';
+	// cout << "Number of nodes: " << g_nodes.size() << '\n';
+
+	NodeInfo* nodeInfo = new NodeInfo();
+    ValueID valueId;
+	
 	switch (_notification->GetType())
 	{
-		case Notification::Type_UserAlerts:
-			cout << "User alert\n";
+		case Notification::Type_ValueAdded:
+			valueId = _notification->GetValueID();
+			cout << "Detail Value Id: " << valueId.GetAsString() << endl;
 			break;
-		case Notification::Type_AllNodesQueried:
-			cout << "All nodes got queried\n";
+		case Notification::Type_ValueRemoved:
+			break;
+		case Notification::Type_ValueChanged:
+			break;
+		case Notification::Type_ValueRefreshed:
+			break;
+		case Notification::Type_Group:
+			break;
+		case Notification::Type_NodeNew:
+			break;
+		case Notification::Type_NodeAdded:			
+			nodeInfo->m_homeId = _notification->GetHomeId();
+			nodeInfo->m_nodeId = _notification->GetNodeId();
+			nodeInfo->m_name = Manager::Get()->GetNodeProductName(nodeInfo->m_homeId, nodeInfo->m_nodeId);
+			nodeInfo->m_polled = false;
+			nodeInfo->m_nodeType = _notification->GetType();
+			g_nodes.push_back( nodeInfo );
+			break;
+		case Notification::Type_NodeRemoved:
+			break;
+		case Notification::Type_NodeProtocolInfo:
+			break;
+		case Notification::Type_NodeNaming:
+			break;
+		case Notification::Type_NodeEvent:
+			break;
+		case Notification::Type_PollingDisabled:
+			break;
+		case Notification::Type_PollingEnabled:
+			break;
+		case Notification::Type_SceneEvent:
+			break;
+		case Notification::Type_CreateButton:
+			break;
+		case Notification::Type_DeleteButton:
+			break;
+		case Notification::Type_ButtonOn:
+			break;
+		case Notification::Type_ButtonOff:
+			break;
+		case Notification::Type_DriverReady:
+			break;
+		case Notification::Type_DriverFailed:
+			break;
+		case Notification::Type_DriverReset:
+			break;
+		case Notification::Type_EssentialNodeQueriesComplete:
 			break;
 		case Notification::Type_NodeQueriesComplete:
-			cout << "Nodes queries complete\n";
+			break;
+		case Notification::Type_AwakeNodesQueried:
+			break;
+		case Notification::Type_AllNodesQueriedSomeDead:
+			break;
+		case Notification::Type_AllNodesQueried:
+			if (!g_menuLocked)
+				g_menuLocked = false;
+			break;
+		case Notification::Type_Notification:
+			break;
+		case Notification::Type_DriverRemoved:
+			break;
+		case Notification::Type_ControllerCommand:
+			break;
+		case Notification::Type_NodeReset:
+			break;
+		case Notification::Type_UserAlerts:
+			break;
+		case Notification::Type_ManufacturerSpecificDBReady:
 			break;
 		default:
-			cout << _notification->GetType() << '\n'; 
 			break;
 	}
+	// cout << "Number of nodes: " << g_nodes.size() << endl;
+	
+    std::cout << "Notification: " << _notification << endl;
+    
+	list<NodeInfo*>::iterator it;
+	// for (it = g_nodes.begin(); it != g_nodes.end(); ++it) {
+	// 	cout << "NodeID  : " << unsigned((*it)->m_nodeId) << endl;
+	// 	cout << "NodeName: " << (*it)->m_name << endl;
+	// 	cout << "NodeType: " << (*it)->m_nodeType << endl;
+	// }
+
+	pthread_mutex_unlock(&g_criticalSection); // unlock critical section
+	return;
+}
+
+void menu()
+{
+	string response;
+    int choice{ 0 };
+	int x{ 5 };
+	while (x --> 0)
+	{
+		std::cout << x << endl;
+		this_thread::sleep_for(chrono::seconds(1));
+	}
+
+    cout << "----- MENU -----" << endl << endl;
+    cout << "1. Add node" << endl;
+    cout << "2. Remove node" << endl;
+    cout << "3. Get value" << endl;
+    cout << "4. Set value" << endl;
+
+    cin >> response;
+
+    try
+    {
+        choice = stoi(response);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
+
+    switch (choice)
+    {
+    case 1:
+        Manager::Get()->AddNode(g_homeId, false);
+        break;
+    case 2:
+        Manager::Get()->RemoveNode(g_homeId);
+        break;
+    case 3:
+        // Manager::Get()->;
+        break;
+    case 4:
+        break;
+    default:
+        cout << "You must enter 1, 2, 3 or 4." << endl;
+        break;
+    }
+
+	// Manager::Get()->AddNode(g_homeId, false);
+	// Manager::Get()->RemoveNode(g_homeId);
+	// cout << "Node removed" << endl;
+	// Manager::Get()->TestNetwork(g_homeId, 5);
+	// cout << "Name: " << Manager::Get()->GetNodeProductName(g_homeId, 2).c_str() << endl;
 }
 
 int main(int argc, char const *argv[])
 {
 	pthread_mutexattr_t mutexattr;
+	string response;
 
 	pthread_mutexattr_init ( &mutexattr );
 	pthread_mutexattr_settype( &mutexattr, PTHREAD_MUTEX_RECURSIVE );
@@ -514,13 +683,16 @@ int main(int argc, char const *argv[])
 
 	printf("Starting MinOZW with OpenZWave Version %s\n", Manager::getVersionLongAsString().c_str());
 
-	Options::Create( "../../../config/", "../../../user", "" );
-	Options::Get()->AddOptionInt( "SaveLogLevel", LogLevel_Warning );
-	Options::Get()->AddOptionInt( "QueueLogLevel", LogLevel_Warning );
-	Options::Get()->AddOptionInt( "DumpTrigger", LogLevel_Warning );
-	Options::Get()->AddOptionInt( "PollInterval", 500 );
-	Options::Get()->AddOptionBool( "IntervalBetweenPolls", true );
-	Options::Get()->AddOptionBool("ValidateValueChanges", true);
+	Options::Create("config/", "log", "");
+	// Options::Get()->AddOptionInt( "SaveLogLevel", LogLevel_Debug );
+	// Options::Get()->AddOptionInt( "QueueLogLevel", LogLevel_Debug );
+	// Options::Get()->AddOptionInt( "DumpTrigger", LogLevel_None );
+	// Options::Get()->AddOptionInt( "PollInterval", 500 );
+	// Options::Get()->AddOptionBool( "IntervalBetweenPolls", true );
+	// Options::Get()->AddOptionBool("ValidateValueChanges", true);
+	// Options::Get()->AddOptionString("LogFileName", "info.log", false );
+	// Options::Get()->AddOptionBool("AppendLogFile", true );
+
 	Options::Get()->Lock();
 
 	Manager::Create();
@@ -528,59 +700,57 @@ int main(int argc, char const *argv[])
 
 	string port = "/dev/ttyACM0";
 	Manager::Get()->AddDriver( port );
-
-	pthread_cond_wait( &initCond, &initMutex );
+	//Manager::Get()->SetValue();
+	
+	// Log::Create("Log.txt", true, false, LogLevel_Debug, LogLevel_Debug, LogLevel_Debug);
+	thread t1(menu);
+	t1.join();
+	pthread_cond_wait(&initCond, &initMutex);
 
 	if (!g_initFailed)
 	{
-		pthread_mutex_lock(&g_criticalSection);
+		pthread_mutex_lock( &g_criticalSection );
+		for (list<NodeInfo*>::iterator it = g_nodes.begin(); it != g_nodes.end(); ++it)
+		{
+			NodeInfo* nodeInfo = *it;
+			
+			if (nodeInfo->m_homeId == 1)
+			{
+				std::cout << "This is the controller";
+			}
+
+			// printf("NodeID: %d \n ", nodeInfo->m_nodeId);
+			// printf("\t NodeName: %s \n ", Manager::Get()->GetNodeName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
+			// printf("\t ManufacturerName: %s \n ", Manager::Get()->GetNodeManufacturerName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
+			// printf("\t NodeProductName: %s \n ", Manager::Get()->GetNodeProductName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
+			
+			// printf("Values announced by the nodes without polling: \n");
+			// for (list<ValueID>::iterator it2 = nodeInfo->m_values.begin(); it2 != nodeInfo->m_values.end(); ++it2)
+			// {
+			// 	ValueID v = *it2;
+			// 	printf("\t ValueLabel: %s \n", Manager::Get()->GetValueLabel(v).c_str());
+			// 	printf("\t\t ValueType: %s (%d) \n", v.GetTypeAsString().c_str(), v.GetType());
+			// 	printf("\t\t ValueHelp: %s \n", Manager::Get()->GetValueHelp(v).c_str());
+			// 	printf("\t\t ValueUnits: %s \n", Manager::Get()->GetValueUnits(v).c_str());
+			// 	printf("\t\t ValueMin: %d \n", Manager::Get()->GetValueMin(v));
+			// 	printf("\t\t ValueMax: %d \n", Manager::Get()->GetValueMax(v));
+			// 	printf("\t\t ValueGenre: %s (%d)\n", v.GetGenreAsString().c_str(), v.GetGenre());
+
+			// 	if (v.GetCommandClassId() == COMMAND_CLASS_BASIC)
+			// 	{
+			// 		Manager::Get()->EnablePoll(v, 2);
+			// 		break;
+			// 	}
+			// }
+		}
+	pthread_mutex_unlock( &g_criticalSection );
+
+	// 	Driver::DriverData data;
+	// 	Manager::Get()->GetDriverStatistics( g_homeId, &data );
+	// 	printf("SOF: %d ACK Waiting: %d Read Aborts: %d Bad Checksums: %d\n", data.m_SOFCnt, data.m_ACKWaiting, data.m_readAborts, data.m_badChecksum);
+	// 	printf("Reads: %d Writes: %d CAN: %d NAK: %d ACK: %d Out of Frame: %d\n", data.m_readCnt, data.m_writeCnt, data.m_CANCnt, data.m_NAKCnt, data.m_ACKCnt, data.m_OOFCnt);
+	// 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
 	}
-
-	// if (!g_initFailed)
-	// {
-	// 	// pthread_mutex_lock( &g_criticalSection );
-	// 	for (list<NodeInfo*>::iterator it = g_nodes.begin(); it != g_nodes.end(); ++it)
-	// 	{
-	// 		NodeInfo* nodeInfo = *it;
-			
-	// 		if (nodeInfo->m_homeId == 1)
-	// 		{
-	// 			cout << "This is the controller";
-	// 		}
-
-	// 		printf("NodeID: %d \n ", nodeInfo->m_nodeId);
-	// 		// printf("\t NodeName: %s \n ", Manager::Get()->GetNodeName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
-	// 		// printf("\t ManufacturerName: %s \n ", Manager::Get()->GetNodeManufacturerName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
-	// 		// printf("\t NodeProductName: %s \n ", Manager::Get()->GetNodeProductName(nodeInfo->m_homeId,nodeInfo->m_nodeId).c_str());
-			
-	// 		// printf("Values announced by the nodes without polling: \n");
-	// 		// for (list<ValueID>::iterator it2 = nodeInfo->m_values.begin(); it2 != nodeInfo->m_values.end(); ++it2)
-	// 		// {
-	// 		// 	ValueID v = *it2;
-	// 		// 	printf("\t ValueLabel: %s \n", Manager::Get()->GetValueLabel(v).c_str());
-	// 		// 	printf("\t\t ValueType: %s (%d) \n", v.GetTypeAsString().c_str(), v.GetType());
-	// 		// 	printf("\t\t ValueHelp: %s \n", Manager::Get()->GetValueHelp(v).c_str());
-	// 		// 	printf("\t\t ValueUnits: %s \n", Manager::Get()->GetValueUnits(v).c_str());
-	// 		// 	printf("\t\t ValueMin: %d \n", Manager::Get()->GetValueMin(v));
-	// 		// 	printf("\t\t ValueMax: %d \n", Manager::Get()->GetValueMax(v));
-	// 		// 	printf("\t\t ValueGenre: %s (%d)\n", v.GetGenreAsString().c_str(), v.GetGenre());
-
-	// 		// 	if (v.GetCommandClassId() == COMMAND_CLASS_BASIC)
-	// 		// 	{
-	// 		// 		Manager::Get()->EnablePoll(v, 2);
-	// 		// 		break;
-	// 		// 	}
-	// 		// }
-	// 	}
-	// // 	pthread_mutex_unlock( &g_criticalSection );
-
-	// // 	Driver::DriverData data;
-	// // 	Manager::Get()->GetDriverStatistics( g_homeId, &data );
-	// // 	printf("SOF: %d ACK Waiting: %d Read Aborts: %d Bad Checksums: %d\n", data.m_SOFCnt, data.m_ACKWaiting, data.m_readAborts, data.m_badChecksum);
-	// // 	printf("Reads: %d Writes: %d CAN: %d NAK: %d ACK: %d Out of Frame: %d\n", data.m_readCnt, data.m_writeCnt, data.m_CANCnt, data.m_NAKCnt, data.m_ACKCnt, data.m_OOFCnt);
-	// // 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
-	// }
 	
-
 	return 0;
 }
