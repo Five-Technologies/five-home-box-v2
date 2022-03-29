@@ -493,9 +493,9 @@ void OnNotification(Notification const* notification, void* context)
 	pthread_mutex_lock(&g_criticalSection); // lock critical section
 
 	if (g_homeId == 0)
-		g_homeId = _notification->GetHomeId();
+		g_homeId = notification->GetHomeId();
 
-	cout << ">>> NOTIFICATION: " << _notification << endl;
+	cout << ">>> NOTIFICATION: " << notification << endl;
 	cout << ">>> CONTEXT: " << context << endl;
 
 	// cout << "Before AddNode()\n";
@@ -530,7 +530,7 @@ void OnNotification(Notification const* notification, void* context)
 	{
 		case Notification::Type_ValueAdded:
 			//We get from the notification the values's ID and name.
-			v = _notification->GetValueID();
+			v = notification->GetValueID();
 			valueLabel = Manager::Get()->GetValueLabel(v);
 
 			
@@ -548,7 +548,7 @@ void OnNotification(Notification const* notification, void* context)
 			break;
 		case Notification::Type_ValueRemoved:
 			//We get from the notification the values's ID and name.
-			v = _notification->GetValueID();
+			v = notification->GetValueID();
 			valueLabel = Manager::Get()->GetValueLabel(v);
 
 
