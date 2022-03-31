@@ -24,6 +24,8 @@ namespace Five {
     bool setColor(ValueID valueId, int hexColor);
     bool setName(ValueID, string name);
 
+    NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes);
+
     class NotificationService {
         public:
             static string valueAdded(Notification const* notification, list<NodeInfo*> nodes);
