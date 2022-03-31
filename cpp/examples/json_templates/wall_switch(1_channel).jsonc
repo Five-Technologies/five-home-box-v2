@@ -1,0 +1,31 @@
+{
+    "id": 9,
+    "model": "wall_switch(1_channel)",
+    "type": "switch",
+    "attributes": {
+        "switch": false,
+        "switch_all": "On and Off Enabled",
+        "zwave+_version": 1,
+        "installer_icon": 1792,
+        "user_icon": 1792,
+        "relay_on/off_status_saved_enable": "Enable",
+        "back_light_enable": "Enable",
+        "relay_on/off_indicate": "Enable",
+        "loaded_config_revision": 2,
+        "config_file_revision": 2,
+        "latest_available_config_file_revision": 1,
+        "power_level": "Normal",
+        "timeout": 0,
+        "set_powerlevel": false,
+        "test_node": 0,
+        "test_powerlevel": false,
+        "frame_count": 0,
+        "test": false,
+        "report": false,
+        "test_status": "Failed",
+        "acked_frames": 0,
+        "library_version": 3,
+        "protocol_version": 4.05,
+        "application_version": 3.94
+    }
+}
