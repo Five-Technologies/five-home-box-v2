@@ -2,6 +2,7 @@
 .lib/
 MinOZW
 cpp/src/vers.cpp
+cpp/MinOZW/examples/cache/
 libopenzwave.a
 libopenzwave.pc
 libopenzwave.so*
