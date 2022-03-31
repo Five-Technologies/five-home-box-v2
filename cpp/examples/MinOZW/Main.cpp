@@ -266,6 +266,7 @@ void menu() {
 	cout << "5. Reset Key" << endl;
 	cout << "6. Wake Up" << endl;
 	cout << "7. Heal" << endl;
+	cout << "8. NewSetValue" << endl;
 
 	cout << "Please choose: ";
     cin >> response;
@@ -313,9 +314,6 @@ void menu() {
 						cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
 						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
 						cout << "Current value: " << *ptr_container << endl;
-						cout << "Set to what ? ";
-						cin >> response;
-						Manager::Get()->SetValue((*valueIt), response);
 						break;
 					}
 				}
@@ -394,6 +392,65 @@ void menu() {
 		break;
 	case 7:
 		break;
+	case 8:
+		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+		{
+			counterNode++;
+			cout << counterNode << ". " << (*nodeIt)->m_name << endl;
+		}
+
+		cout << "\nChoose what node you want a value from: " << endl;
+
+		cin >> response;
+		choice = stoi(response);
+		counterNode = 0;
+		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+		{
+			counterNode++;
+			if (counterNode == choice)
+			{
+				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+				{
+					if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+					{
+						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+						counterValue++;
+					}
+				}
+
+				break;
+			}
+		}
+		cin >> response;
+		choice = stoi(response);
+		counterValue = 0;
+		for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+		{
+			if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+			{
+				if (choice == counterValue)
+				{
+					string valLabel = Manager::Get()->GetValueLabel(*valueIt);
+					cout << "You chose " << valLabel << endl;
+					Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+					cout << "Current value: " << *ptr_container << endl;
+					cout << "Set to what ? ";
+					cin >> response;
+
+					//Checking value type to choose the right method
+					if(valLabel == "Color")
+					{
+						bool verif = Five::setColor((*valueIt), response);
+					} else if(valLabel == "Level")
+					{
+						bool verif = Five::setIntensity((*valueIt), stoi(response));
+					}
+					//Manager::Get()->SetValue((*valueIt), response);
+					break;
+				}
+				counterValue++;
+			}
+		}
     default:
         cout << "You must enter 1, 2, 3 or 4." << endl;
         break;
