@@ -37,7 +37,7 @@ int main(int argc, char const *argv[])
 
 	printf("Starting MinOZW with OpenZWave Version %s\n", Manager::getVersionLongAsString().c_str());
 
-	Options::Create("config/", "cpp/examples/MinOZW/cache/", "");
+	Options::Create("config/", "cpp/examples/cache/", "");
 	Options::Get()->Lock();
 
 	Manager::Create();
@@ -86,7 +86,7 @@ void onNotification(Notification const* notification, void* context) {
 	ValueID v 			 = notification->GetValueID();
 	uint8 cc_id 		 = v.GetCommandClassId();
 	string cc_name 		 = Manager::Get()->GetCommandClassName(cc_id);
-	string path 		 = "cpp/examples/MinOZW/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
+	string path 		 = "cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
 	bool isNewNode		 = true;
 	string valueLabel;
 
