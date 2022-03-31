@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Driver xmlns="https://github.com/OpenZWave/open-zwave" version="5" revision="172" home_id="0xc5b5400a" node_id="1" api_capabilities="8" controller_capabilities="28" poll_interval="500" poll_interval_between="true">
+	<Node id="1" name="" location="" basic="2" generic="2" specific="1" type="Static PC Controller" listening="true" frequentListening="false" beaming="true" routing="true" max_baud_rate="100000" version="4" configrevision="0" query_stage="Complete">
+		<Neighbors>2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0</Neighbors>
+		<Manufacturer id="115" name="Z-Wave.Me">
+			<Product type="400" id="1" name="ZME_UZB1 USB Stick">
+				<MetaData />
+			</Product>
+		</Manufacturer>
+		<CommandClasses>
+			<CommandClass id="32" name="COMMAND_CLASS_BASIC">
+				<Compatibility />
+				<State>
+					<AfterMark>true</AfterMark>
+				</State>
+				<Instance index="1" />
+				<Value type="byte" genre="basic" instance="1" index="0" label="Basic" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help>Basic status of the node in French</Help>
+				</Value>
+				<Value type="byte" genre="basic" instance="1" index="1" label="Basic Target" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help></Help>
+				</Value>
+				<Value type="int" genre="basic" instance="1" index="2" label="Basic Duration" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help></Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="114" name="COMMAND_CLASS_MANUFACTURER_SPECIFIC">
+				<Compatibility />
+				<State>
+					<StaticRequests>2</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="int" genre="system" instance="1" index="0" label="Loaded Config Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Revision of the Config file currently loaded</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="1" label="Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Revision of the Config file on the File System</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="2" label="Latest Available Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Latest Revision of the Config file available for download</Help>
+				</Value>
+			</CommandClass>
+		</CommandClasses>
+	</Node>
+	<Node id="2" name="" location="" basic="4" generic="17" specific="1" roletype="5" devicetype="1536" nodetype="0" type="Multilevel Power Switch" listening="true" frequentListening="false" beaming="true" routing="true" max_baud_rate="100000" version="4" configrevision="3" query_stage="Complete">
+		<Neighbors>1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0</Neighbors>
+		<Manufacturer id="208" name="HANK Electronics Ltd">
+			<Product type="100" id="4" name="HKZW-RGB01 RGB bulb">
+				<MetaData>
+					<MetaDataItem name="OzwInfoPage">http://www.openzwave.com/device-database/0208:0004:0100</MetaDataItem>
+					<MetaDataItem name="ProductPic">images/hank/hkzw-rgb01.png</MetaDataItem>
+					<MetaDataItem name="Description">RGB Bulb is a smart bulb enables Z-Wave remote command and control (on/off/dim). It has over 16,000,000 colors, you can choose its color according to your favour.</MetaDataItem>
+					<MetaDataItem name="ProductManual">https://Products.Z-WaveAlliance.org/ProductManual/File?folder=&amp;filename=Manuals/1976/HKZW-RGB01 Manual.pdf</MetaDataItem>
+					<MetaDataItem name="InclusionDescription">To include RGB BULB into a Z-Wave network as a non-security device:&#x0A;(1) Make sure the power supply is disconnected and the RGB BULB is&#x0A;located within a direct Z-Wave network&apos;s main controller&#x0A;communication range.&#x0A;(2) Set the Z-Wave network main controller into learning mode&#x0A;(see Z-Wave network controller operating manual).&#x0A;(3) Insert the RGB BULB into a lamp-socket and then power on.&#x0A;(4) Auto-inclusion will be activated. If the inclusion is successful, the&#x0A;RGB BULB will blink fast in blue for less than 5 seconds and then&#x0A;keep on for 3 seconds. RGB BULB will keep on in the color before it&#x0A;is included into the Z-Wave network after the inclusion procedure&#x0A;is finished.&#x0A;&#x0A;To include RGB BULB into a Z-Wave network as a security device:&#x0A;(1) Screw in the RGB BULB.&#x0A;(2) Set the Z-Wave network main controller into learning mode&#x0A;(see Z-Wave network controller operating manual).&#x0A;(3) Toggle the wall switch off and on 3 times quickly (within 3 seconds&#x0A;and the final ending position of the wall switch must be on).&#x0A;(4) If the inclusion is successful, the RGB BULB will blink fast in green&#x0A;for less than 5 seconds and then keep on 3 seconds. RGB BULB will&#x0A;keep on in the color before it is included into the Z-Wave network&#x0A;after the inclusion procedure is finished.</MetaDataItem>
+					<MetaDataItem name="ExclusionDescription">To remove the RGB BULB from the Z-Wave network:&#x0A;(1) Screw in the RGB BULB.&#x0A;(2) Set the Z-Wave network main controller into excluding mode&#x0A;(see Z-Wave controller operating manual).&#x0A;(3) Toggle the wall switch off and on 3 times quickly(within 3&#x0A;and the final ending position of the wall switch must be on),&#x0A;if the exclusion is successful, the RGB BULB will blink fast in&#x0A;orange for less than 5 seconds and then keep on for 3 seconds.&#x0A;RGB BULB will keep on warm white after the exclusion procedure&#x0A;is finished.</MetaDataItem>
+					<MetaDataItem name="ResetDescription">There are two ways to reset the RGB BULB. One is that removing&#x0A;RGB BULB from the Z-Wave network, the other is that using the&#x0A;configuration command class.</MetaDataItem>
+					<MetaDataItem name="Name">RGB Bulb</MetaDataItem>
+					<ChangeLog>
+						<Entry author="Justin Hammond - Justin@dynam.ac" date="24 May 2019" revision="2">Initial Metadata Import from Z-Wave Alliance Database - https://products.z-wavealliance.org/products/1897/xml</Entry>
+						<Entry author="Justin Hammond - Justin@dynam.ac" date="24 May 2019" revision="3">Updated Metadata Import from Z-Wave Alliance Database - https://products.z-wavealliance.org/products/1976/xml</Entry>
+					</ChangeLog>
+				</MetaData>
+			</Product>
+		</Manufacturer>
+		<CommandClasses>
+			<CommandClass id="32" name="COMMAND_CLASS_BASIC">
+				<Compatibility>
+					<Mapping>38</Mapping>
+				</Compatibility>
+				<State>
+					<CCVersion>1</CCVersion>
+				</State>
+				<Instance index="1" />
+			</CommandClass>
+			<CommandClass id="38" name="COMMAND_CLASS_SWITCH_MULTILEVEL">
+				<Compatibility />
+				<State>
+					<CCVersion>2</CCVersion>
+					<InNif>true</InNif>
+				</State>
+				<Instance index="1" />
+				<Value type="byte" genre="user" instance="1" index="0" label="Level" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="50">
+					<Help>The Current Level of the Device</Help>
+				</Value>
+				<Value type="button" genre="user" instance="1" index="1" label="Bright" units="" read_only="false" write_only="true" verify_changes="false" poll_intensity="0" min="0" max="0">
+					<Help>Increase the Brightness of the Device</Help>
+				</Value>
+				<Value type="button" genre="user" instance="1" index="2" label="Dim" units="" read_only="false" write_only="true" verify_changes="false" poll_intensity="0" min="0" max="0">
+					<Help>Decrease the Brightness of the Device</Help>
+				</Value>
+				<Value type="bool" genre="system" instance="1" index="3" label="Ignore Start Level" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="True">
+					<Help>Ignore the Start Level of the Device when increasing/decreasing brightness</Help>
+				</Value>
+				<Value type="byte" genre="system" instance="1" index="4" label="Start Level" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help>Start Level when Changing the Brightness of a Device</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="5" label="Dimming Duration" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="-1">
+					<Help>Duration taken when changing the Level of a Device (Values above 7620 use the devices default duration)</Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="39" name="COMMAND_CLASS_SWITCH_ALL">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="list" genre="system" instance="1" index="0" label="Switch All" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" vindex="3" size="1">
+					<Help>Switch All Devices On/Off</Help>
+					<Item label="Disabled" value="0" />
+					<Item label="Off Enabled" value="1" />
+					<Item label="On Enabled" value="2" />
+					<Item label="On and Off Enabled" value="255" />
+				</Value>
+			</CommandClass>
+			<CommandClass id="43" name="COMMAND_CLASS_SCENE_ACTIVATION">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="int" genre="user" instance="1" index="0" label="Scene" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help></Help>
+				</Value>
+				<Value type="int" genre="user" instance="1" index="1" label="Duration" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help></Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="51" name="COMMAND_CLASS_COLOR">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<Channels>31</Channels>
+					<InNif>true</InNif>
+					<StaticRequests>2</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="string" genre="user" instance="1" index="0" label="Color" units="#RRGGBBWWCW" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="#FF00000000">
+					<Help>Color (in RGB format)</Help>
+				</Value>
+				<Value type="list" genre="user" instance="1" index="1" label="Color Index" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" vindex="3" size="0">
+					<Help>Preset Color</Help>
+					<Item label="Off" value="0" />
+					<Item label="Cool White" value="1" />
+					<Item label="Warm White" value="2" />
+					<Item label="Red" value="3" />
+					<Item label="Lime" value="4" />
+					<Item label="Blue" value="5" />
+					<Item label="Yellow" value="6" />
+					<Item label="Cyan" value="7" />
+					<Item label="Magenta" value="8" />
+					<Item label="Silver" value="9" />
+					<Item label="Gray" value="10" />
+					<Item label="Maroon" value="11" />
+					<Item label="Olive" value="12" />
+					<Item label="Green" value="13" />
+					<Item label="Purple" value="14" />
+					<Item label="Teal" value="15" />
+					<Item label="Navy" value="16" />
+					<Item label="Custom" value="17" />
+				</Value>
+				<Value type="int" genre="system" instance="1" index="2" label="Color Channels" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="31">
+					<Help>Color Capabilities of the device</Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="90" name="COMMAND_CLASS_DEVICE_RESET_LOCALLY">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+			</CommandClass>
+			<CommandClass id="94" name="COMMAND_CLASS_ZWAVEPLUS_INFO">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>6</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="byte" genre="system" instance="1" index="0" label="ZWave+ Version" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="1">
+					<Help>ZWave+ Version Supported on the Device</Help>
+				</Value>
+				<Value type="short" genre="system" instance="1" index="1" label="InstallerIcon" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-32768" max="32767" value="1536">
+					<Help>Icon File to use for the Installer Application</Help>
+				</Value>
+				<Value type="short" genre="system" instance="1" index="2" label="UserIcon" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-32768" max="32767" value="1536">
+					<Help>Icon File to use for the User Application</Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="112" name="COMMAND_CLASS_CONFIGURATION">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="list" genre="config" instance="1" index="21" label="Status after power failure" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="2" vindex="0" size="1">
+					<Help>Define how the RGB BULB will react after the power supply is back on.</Help>
+					<Item label="RGB BULB memorizes its state after a power failure" value="0" />
+					<Item label="Device will be on after power supply is reconnected" value="1" />
+					<Item label="Device will be off after power supply is reconnected" value="2" />
+				</Value>
+				<Value type="list" genre="config" instance="1" index="24" label="Notification when Load status change" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="2" vindex="1" size="1">
+					<Help>RGB BULB can send notifications to associated device </Help>
+					<Item label="Notifications Disabled" value="0" />
+					<Item label="Send BASIC REPORT" value="1" />
+					<Item label="Send BASIC REPORT only without status change" value="2" />
+				</Value>
+				<Value type="list" genre="config" instance="1" index="51" label="Enable/disable the function of using wall switch" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="1" vindex="0" size="1">
+					<Help>Enable/disable the function of using wall switch to turn on/off RGB BULB</Help>
+					<Item label="Disable" value="0" />
+					<Item label="Enable" value="1" />
+				</Value>
+				<Value type="list" genre="config" instance="1" index="61" label="Advance mode" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="3072" max="318816256" vindex="0" size="4">
+					<Help>RGB BULB can blink or cyclic/random change color automatically at set intervals.</Help>
+					<Item label="Stop changing" value="3072" />
+					<Item label="Color gradual change randomly" value="16826368" />
+					<Item label="Color change randomly with a breathing blink" value="33603584" />
+					<Item label="Blink with random color" value="50380800" />
+					<Item label="Color change randomly" value="67158016" />
+					<Item label="Color gradual change" value="285261824" />
+					<Item label="Breathing blink with a specific color" value="302039040" />
+					<Item label="Blink with a specific color" value="318816256" />
+				</Value>
+				<Value type="list" genre="config" instance="1" index="255" label="Resetting to factory default" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="1" max="1431655765" vindex="0" size="4">
+					<Help>RGB BULB will exclude from the Z-Wave network with this particular command</Help>
+					<Item label="Resetting to the factory default" value="1431655765" />
+				</Value>
+			</CommandClass>
+			<CommandClass id="114" name="COMMAND_CLASS_MANUFACTURER_SPECIFIC">
+				<Compatibility />
+				<State>
+					<CCVersion>2</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>0</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="int" genre="system" instance="1" index="0" label="Loaded Config Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="3">
+					<Help>Revision of the Config file currently loaded</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="1" label="Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="3">
+					<Help>Revision of the Config file on the File System</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="2" label="Latest Available Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="3">
+					<Help>Latest Revision of the Config file available for download</Help>
+				</Value>
+				<Value type="string" genre="system" instance="1" index="4" label="Serial Number" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="0107010300000000060200074800010001000000">
+					<Help>Device Serial Number</Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="115" name="COMMAND_CLASS_POWERLEVEL">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="list" genre="system" instance="1" index="0" label="Powerlevel" units="dB" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" vindex="5" size="1">
+					<Help>Output RF PowerLevel</Help>
+					<Item label="Normal" value="0" />
+					<Item label="-1dB" value="1" />
+					<Item label="-2dB" value="2" />
+					<Item label="-3dB" value="3" />
+					<Item label="-4dB" value="4" />
+					<Item label="-5dB" value="5" />
+					<Item label="-6dB" value="6" />
+					<Item label="-7dB" value="7" />
+					<Item label="-8dB" value="8" />
+					<Item label="-9dB" value="9" />
+				</Value>
+				<Value type="byte" genre="system" instance="1" index="1" label="Timeout" units="seconds" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help>Timeout till the PowerLevel is reset to Normal</Help>
+				</Value>
+				<Value type="button" genre="system" instance="1" index="2" label="Set Powerlevel" units="" read_only="false" write_only="true" verify_changes="false" poll_intensity="0" min="0" max="0">
+					<Help>Apply the Output PowerLevel and Timeout Values</Help>
+				</Value>
+				<Value type="byte" genre="system" instance="1" index="3" label="Test Node" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help>Node to Perform a test against</Help>
+				</Value>
+				<Value type="list" genre="system" instance="1" index="4" label="Test Powerlevel" units="dB" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" vindex="0" size="1">
+					<Help>PowerLevel to use for the Test</Help>
+					<Item label="Normal" value="0" />
+					<Item label="-1dB" value="1" />
+					<Item label="-2dB" value="2" />
+					<Item label="-3dB" value="3" />
+					<Item label="-4dB" value="4" />
+					<Item label="-5dB" value="5" />
+					<Item label="-6dB" value="6" />
+					<Item label="-7dB" value="7" />
+					<Item label="-8dB" value="8" />
+					<Item label="-9dB" value="9" />
+				</Value>
+				<Value type="short" genre="system" instance="1" index="5" label="Frame Count" units="" read_only="false" write_only="false" verify_changes="false" poll_intensity="0" min="-32768" max="32767" value="0">
+					<Help>How Many Messages to send to the Node for the Test</Help>
+				</Value>
+				<Value type="button" genre="system" instance="1" index="6" label="Test" units="" read_only="false" write_only="true" verify_changes="false" poll_intensity="0" min="0" max="0">
+					<Help>Perform a PowerLevel Test against the a Node</Help>
+				</Value>
+				<Value type="button" genre="system" instance="1" index="7" label="Report" units="" read_only="false" write_only="true" verify_changes="false" poll_intensity="0" min="0" max="0">
+					<Help>Get the results of the latest PowerLevel Test against a Node</Help>
+				</Value>
+				<Value type="list" genre="system" instance="1" index="8" label="Test Status" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" vindex="0" size="1">
+					<Help>The Current Status of the last PowerNode Test Executed</Help>
+					<Item label="Failed" value="0" />
+					<Item label="Success" value="1" />
+					<Item label="In Progress" value="2" />
+				</Value>
+				<Value type="short" genre="system" instance="1" index="9" label="Acked Frames" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-32768" max="32767" value="0">
+					<Help>Number of Messages successfully Acked by the Target Node</Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="133" name="COMMAND_CLASS_ASSOCIATION">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Associations num_groups="1">
+					<Group index="1" max_associations="5" label="Lifeline" auto="true">
+						<Node id="1" />
+					</Group>
+				</Associations>
+			</CommandClass>
+			<CommandClass id="134" name="COMMAND_CLASS_VERSION">
+				<Compatibility />
+				<State>
+					<CCVersion>1</CCVersion>
+					<InNif>true</InNif>
+					<StaticRequests>4</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="string" genre="system" instance="1" index="0" label="Library Version" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="3">
+					<Help>Z-Wave Library Version</Help>
+				</Value>
+				<Value type="string" genre="system" instance="1" index="1" label="Protocol Version" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="4.34">
+					<Help>Z-Wave Protocol Version</Help>
+				</Value>
+				<Value type="string" genre="system" instance="1" index="2" label="Application Version" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="0" value="1.03">
+					<Help>Application Version</Help>
+				</Value>
+			</CommandClass>
+		</CommandClasses>
+	</Node>
+</Driver>

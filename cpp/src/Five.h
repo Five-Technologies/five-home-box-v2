@@ -19,10 +19,9 @@ namespace Five {
     NodeInfo getNodeInfo(Notification const* notification, list<NodeInfo*> nodes);
     bool isAlive(uint8 nodeId);
 
-    bool setState(ValueID valueId, bool state);
-    bool setIntensity(ValueID valueId, double intensity);
+    bool setSwitch(ValueID valueId, bool state);
+    bool setIntensity(ValueID valueId, float intensity);
     bool setColor(ValueID valueId, int hexColor);
-    bool setName(ValueID, string name);
 
     class NotificationService {
         public:

@@ -70,3 +70,30 @@ string NotificationService::valueChanged(Notification const* notification, list<
 
     return output;
 }
+
+bool setSwitch(ValueID valueId, bool state)
+{   
+    if(state)
+    {
+        Manager::Get()->SetValue(valueId, "True");
+    }
+    else
+    {
+        Manager::Get()->SetValue(valueId, "False");
+    }
+    return true;
+}
+
+bool setIntensity(ValueID valueId, int intensity)
+{
+
+    Manager::Get()->SetValue(valueId, intensity);
+    return true;
+}
+
+bool setColor(ValueID valueId, int hexColor)
+{
+    Manager::Get()->SetValue(valueId, hexColor);
+    return true;
+}
+

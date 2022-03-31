@@ -6,10 +6,12 @@
 #include "Node.h"
 #include <thread>
 #include "Five.h"
+#include <fstream>
 
 using namespace OpenZWave;
 using namespace Five;
 using namespace std;
+using namespace Internal::CC;
 
 static uint32 g_homeId{ 0 };
 static list<NodeInfo*> g_nodes;
@@ -18,7 +20,8 @@ static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 static bool g_menuLocked{ true };
 
-NodeInfo* getNodeInfo(Notification* notification);
+
+NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
 void menu();
 
@@ -39,10 +42,10 @@ int main(int argc, char const *argv[])
 	Options::Get()->Lock();
 
 	Manager::Create();
-	Manager::Get()->AddWatcher(onNotification, NULL );
+	Manager::Get()->AddWatcher(onNotification, NULL);
 
 	string port = "/dev/ttyACM0";
-	Manager::Get()->AddDriver( port );
+	Manager::Get()->AddDriver(port);
 
 	while (true) {
 		thread t1(menu);
@@ -61,45 +64,64 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
-NodeInfo* getNodeInfo(Notification const* notification) {
-	uint32 const homeId = notification->GetHomeId();
-	uint8 const nodeId = notification->GetNodeId();
-	for( list<NodeInfo*>::iterator it = g_nodes.begin(); it != g_nodes.end(); ++it ) {
-		NodeInfo* nodeInfo = *it;
-		if((nodeInfo->m_homeId == homeId) && (nodeInfo->m_nodeId == nodeId)) {
-			return nodeInfo;
-		}
-	}
+NodeInfo* newNode(Notification const* notification) {
+	uint32 homeId = notification->GetHomeId();
+	uint8 nodeId = notification->GetNodeId();
+	ValueID valueID = notification->GetValueID();
+	string name = Manager::Get()->GetNodeProductName(homeId, nodeId);
+	string type = valueID.GetTypeAsString();
 
-	return NULL;
+	NodeInfo* n = new NodeInfo();
+	n->m_homeId		= homeId;
+	n->m_nodeId		= nodeId;
+	n->m_name     	= name;
+	n->m_nodeType 	= type;
+
+	return n;
 }
 
 void onNotification(Notification const* notification, void* context) {
-    ValueID v;
 	list<NodeInfo*>::iterator it;
 	list<ValueID>::iterator it2;
-	string valueLabel;
-	NodeInfo* nodeInfo = new NodeInfo();
+	ofstream myfile;
+	ValueID v 			 = notification->GetValueID();
+	uint8 cc_id 		 = v.GetCommandClassId();
+	string cc_name 		 = Manager::Get()->GetCommandClassName(cc_id);
+	string path 		 = "log/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
+	bool isNewNode		 = true;
+
+	auto rawNow = chrono::system_clock::now();
+	time_t formatNow = chrono::system_clock::to_time_t(rawNow);
 
 	pthread_mutex_lock(&g_criticalSection); // lock critical section
 
-	if (g_homeId == 0)
+	cout << "[NOTIFICATION] node " << to_string(v.GetNodeId());
+
+	if (g_homeId == 0) {
 		g_homeId = notification->GetHomeId();
-	
+	}
+
+
 	switch (notification->GetType()) {
 		case Notification::Type_ValueAdded:
-			//We get from the notification the values's ID and name.
-			v = notification->GetValueID();
-			valueLabel = Manager::Get()->GetValueLabel(v);
-
 			//We add the value to the value list of the node
 			for(it = g_nodes.begin(); it != g_nodes.end(); ++it ) {
-				uint8 nodeId = (*it) -> m_nodeId;
-				if ( nodeId == v.GetNodeId() ) {
+				if ((*it)->m_nodeId == v.GetNodeId()) {
 					((*it) -> m_values).push_back(v);
+					isNewNode = false;
 				}
-					
 			}
+
+			// If the node doesn't exist yet, it appends the new one in the node list.
+			// The valueID is already put in its list thanks to the notification.
+			if (isNewNode) {
+				g_nodes.push_back(newNode(notification));
+			}
+
+			myfile.open(path, ios::app);
+			myfile << formatNow << " [VALUE_ADDED] CC: " << cc_name << ", index: " << to_string(v.GetIndex()) << '\n';
+			myfile.close();
+
 			// cout << "[" << time(0) << " : VALUE_ADDED] label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRemoved:
@@ -137,12 +159,19 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_NodeNew:
 			break;
 		case Notification::Type_NodeAdded:
-			nodeInfo->m_homeId = notification->GetHomeId();
-			nodeInfo->m_nodeId = notification->GetNodeId();
-			nodeInfo->m_name = Manager::Get()->GetNodeProductName(nodeInfo->m_homeId, nodeInfo->m_nodeId);
-			// nodeInfo->m_polled = false;
-			nodeInfo->m_nodeType = notification->GetType();
-			g_nodes.push_back( nodeInfo );
+			// Search if the current nodeID already exists in the node list.
+			for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+				if ((*it)->m_nodeId == notification->GetNodeId()) {
+					isNewNode = false;
+				}
+			}
+
+			if (isNewNode) {
+				g_nodes.push_back(newNode(notification));
+			}
+			cout << "Value added finished" << endl;
+
+			// Manager::Get()->RefreshNodeInfo(notification->GetHomeId(), notification->GetNodeId());
 			break;
 		case Notification::Type_NodeRemoved:
 			break;
@@ -209,7 +238,7 @@ void menu() {
 	int counterValue{0};
 	list<NodeInfo*>::iterator nodeIt;
 	list<ValueID>::iterator valueIt;
-	
+
 	string container;
 	string* ptr_container = &container;
 
@@ -255,7 +284,7 @@ void menu() {
 		cin >> response;
 		choice = stoi(response);
 		counterNode = 0;
-		
+
 		for(nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
 			counterNode++;
 			if (counterNode == choice) {
@@ -263,12 +292,14 @@ void menu() {
 					cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
 					counterValue++;
 				}
-				
+
 				cout << "\nChoose a valueID: ";
 				cin >> response;
 				choice = stoi(response);
 
 				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
+					// Manager::Get()->GetValueAsString(*valueIt, ptr_container);
+					// cout << Manager::Get()->GetValueLabel(*valueIt) << ": " << *ptr_container << endl;
 					if (choice == std::distance((*nodeIt)->m_values.begin(), valueIt)) {
 						cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
 						Manager::Get()->GetValueAsString((*valueIt), ptr_container);

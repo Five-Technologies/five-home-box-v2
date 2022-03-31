@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Driver xmlns="https://github.com/OpenZWave/open-zwave" version="5" revision="172" home_id="0xcce957b3" node_id="1" api_capabilities="8" controller_capabilities="40" poll_interval="500" poll_interval_between="true">
+	<Node id="1" name="" location="" basic="2" generic="2" specific="1" type="Static PC Controller" listening="true" frequentListening="false" beaming="true" routing="true" max_baud_rate="100000" version="4" configrevision="0" query_stage="Complete">
+		<Neighbors>0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0</Neighbors>
+		<Manufacturer id="115" name="Z-Wave.Me">
+			<Product type="400" id="1" name="ZME_UZB1 USB Stick">
+				<MetaData />
+			</Product>
+		</Manufacturer>
+		<CommandClasses>
+			<CommandClass id="32" name="COMMAND_CLASS_BASIC">
+				<Compatibility />
+				<State>
+					<AfterMark>true</AfterMark>
+				</State>
+				<Instance index="1" />
+				<Value type="byte" genre="basic" instance="1" index="0" label="Basic" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help>Basic status of the node in French</Help>
+				</Value>
+				<Value type="byte" genre="basic" instance="1" index="1" label="Basic Target" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="0" max="255" value="0">
+					<Help></Help>
+				</Value>
+				<Value type="int" genre="basic" instance="1" index="2" label="Basic Duration" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help></Help>
+				</Value>
+			</CommandClass>
+			<CommandClass id="114" name="COMMAND_CLASS_MANUFACTURER_SPECIFIC">
+				<Compatibility />
+				<State>
+					<StaticRequests>2</StaticRequests>
+				</State>
+				<Instance index="1" />
+				<Value type="int" genre="system" instance="1" index="0" label="Loaded Config Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Revision of the Config file currently loaded</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="1" label="Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Revision of the Config file on the File System</Help>
+				</Value>
+				<Value type="int" genre="system" instance="1" index="2" label="Latest Available Config File Revision" units="" read_only="true" write_only="false" verify_changes="false" poll_intensity="0" min="-2147483648" max="2147483647" value="0">
+					<Help>Latest Revision of the Config file available for download</Help>
+				</Value>
+			</CommandClass>
+		</CommandClasses>
+	</Node>
+</Driver>
