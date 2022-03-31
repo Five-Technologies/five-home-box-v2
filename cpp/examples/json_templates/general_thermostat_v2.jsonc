@@ -1,0 +1,36 @@
+{
+    "id": 12,
+    "model": "general_thermostat_v2",
+    "type": "",
+    "attributes": {
+        "air_temperature": 22,
+        "air_temperature_units": "Celsius",
+        "mode": "Off",
+        "operating_state": "Idle",
+        "cooling_1": 0.0,
+        "zwave+_version": 1,
+        "installer_icon": 4608,
+        "user_icon": 4608,
+        "loaded_config_revision": 0,
+        "config_file_revision": 0,
+        "latest_available_config_file_revision": 0,
+        "powerlevel": "Normal",
+        "timeout": 0,
+        "set_powerlevel": false,
+        "test_node": 0,
+        "test_powerlevel": "Normal",
+        "frame_count": 0,
+        "test": false,
+        "report": false,
+        "test_status": "Failed",
+        "acked_frames": 0,
+        "day": "Monday",
+        "hour": 0,
+        "minute": 0,
+        "library_version": 3,
+        "protocol_version": 4.38,
+        "application_version": 0.13
+
+
+    }
+}

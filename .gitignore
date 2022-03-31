@@ -1,6 +1,5 @@
 .dep/
 .lib/
-MinOZW
 cpp/src/vers.cpp
 libopenzwave.a
 libopenzwave.pc
@@ -56,3 +55,7 @@ ozw_config
 gtest-main
 cpp/src/command_classes/\.DS_Store
 .DS_Store
+
+MinOZW
+ozwcache_*
+
