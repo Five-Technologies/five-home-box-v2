@@ -23,6 +23,8 @@ namespace Five {
     bool setIntensity(ValueID valueId, float intensity);
     bool setColor(ValueID valueId, int hexColor);
 
+    NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes);
+
     class NotificationService {
         public:
             static string valueAdded(Notification const* notification, list<NodeInfo*> nodes);

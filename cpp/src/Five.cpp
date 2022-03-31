@@ -1,6 +1,7 @@
 #include "Five.h"
 #include "Notification.h"
 #include "Manager.h"
+#include "command_classes/CommandClass.h"
 
 using namespace Five;
 using namespace OpenZWave;
@@ -23,6 +24,25 @@ NodeInfo getNodeInfo(Notification const* notification, list<NodeInfo*> nodes) {
     return node;
 }
 
+NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes)
+{
+    list<NodeInfo*>::iterator it;
+    NodeInfo node;
+    
+    node.m_homeId = homeId;
+    node.m_name = Manager::Get()->GetNodeProductName(node.m_homeId, nodeId);
+    node.m_nodeId = nodeId;
+    node.m_nodeType = Manager::Get()->GetNodeType(node.m_homeId, nodeId);
+    for(it = g_nodes.begin(); it != g_nodes.end(); ++it)
+    {
+        if((*it)->m_nodeId == nodeId)
+        {
+            node.m_values = (*it)->m_values;
+        }
+    }
+    return node;
+    
+}
 string NotificationService::valueAdded(Notification const* notification, list<NodeInfo*> nodes) {
     return "[VALUE ADDED] " + notification->GetValueID().GetAsString() + '\n';
 }
