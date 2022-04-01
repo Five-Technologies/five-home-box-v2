@@ -9,7 +9,9 @@
 #include <thread>
 #include "Five.h"
 #include <fstream>
-#include <bitset>
+#include <ctime>
+#include <cstdint>
+#include <filesystem>
 
 using namespace OpenZWave;
 using namespace Five;
@@ -17,7 +19,7 @@ using namespace std;
 using namespace Internal::CC;
 
 static uint32 g_homeId{ 0 };
-static list<NodeInfo*> g_nodes;
+static list<NodeInfo*> g_nodes = {};
 static pthread_mutex_t g_criticalSection;
 static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
@@ -28,6 +30,11 @@ static list<string> g_setTypes = {"Color", "Switch", "Level"};
 NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
 void menu();
+bool isNewNode(uint8 nodeID);
+NodeInfo* getNodeInfo(uint8 nodeID, list<NodeInfo*> nodes);
+void refreshNode(ValueID valueID, NodeInfo* oldNodeInfo);
+bool addNode(Notification const notification);
+bool removeNode(Notification const* notification);
 
 int main(int argc, char const *argv[])
 {
@@ -68,6 +75,7 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
+// Create a new NodeInfo.
 NodeInfo* newNode(Notification const* notification) {
 	uint32 homeId = notification->GetHomeId();
 	uint8 nodeId = notification->GetNodeId();
@@ -75,7 +83,7 @@ NodeInfo* newNode(Notification const* notification) {
 	string name = Manager::Get()->GetNodeProductName(homeId, nodeId);
 	string type = valueID.GetTypeAsString();
 
-	NodeInfo* n = new NodeInfo();
+	NodeInfo *n = new NodeInfo();
 	n->m_homeId		= homeId;
 	n->m_nodeId		= nodeId;
 	n->m_name     	= name;
@@ -84,164 +92,287 @@ NodeInfo* newNode(Notification const* notification) {
 	return n;
 }
 
+// Check if <nodeID> exists in <nodes>.
+bool isNewNode(uint8 nodeID) {
+	list<NodeInfo*>::iterator it;
+	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+		// cout << "it: " << to_string((*it)->m_nodeId) << " nodeID: " << to_string(nodeID) << ", ";
+		if ((*it)->m_nodeId == nodeID) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Get the NodeInfo thanks to the <nodeID>.
+NodeInfo* getNodeInfo(uint8 nodeID, list<NodeInfo*> nodes) {
+	list<NodeInfo*>::iterator it;
+
+	for (it = nodes.begin(); it != nodes.end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			return *it;
+		}
+	}
+	return NULL;
+}
+
+// Refresh members in the oldNodeInfo thanks to this valueID.
+void refreshNode(ValueID valueID, NodeInfo* oldNodeInfo) {
+	oldNodeInfo->m_homeId = valueID.GetHomeId();
+	oldNodeInfo->m_name = Manager::Get()->GetNodeName(valueID.GetHomeId(), valueID.GetNodeId());
+	oldNodeInfo->m_nodeType = Manager::Get()->GetNodeType(valueID.GetHomeId(), valueID.GetNodeId());
+	oldNodeInfo->m_values.push_back(valueID);
+}
+
+bool addNode(Notification const *notification) {
+	NodeInfo* n{ newNode(notification) };
+	uint8 nodeID{ notification->GetNodeId() };
+
+	if (isNewNode(nodeID)) {
+		g_nodes.push_back(n);
+		return true;
+	}
+	return false;
+}
+
+bool removeNode(Notification const *notification) {
+	uint8 nodeID{ notification->GetNodeId() };
+	list<NodeInfo*>::iterator it;
+
+	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			g_nodes.remove(*it);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool addValue(Notification const* notification) {
+	uint8 nodeID{ notification->GetNodeId() };
+	list<NodeInfo*>::iterator it;
+
+	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			(*it)->m_name = Manager::Get()->GetNodeProductName(notification->GetHomeId(), nodeID);
+			(*it)->m_values.push_back(notification->GetValueID());
+			return true;
+		}
+	}
+	return false;
+}
+
+bool removeValue(ValueID valueID) {
+	uint8 nodeID{ valueID.GetNodeId() };
+	list<NodeInfo*>::iterator it;
+	list<ValueID>* valueIDs;
+	list<ValueID>::iterator it2;
+
+	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			valueIDs = &((*it)->m_values);
+
+			for (it2 = valueIDs->begin(); it2 != valueIDs->end(); it2++) {
+				if (*it2 == valueID) {
+					valueIDs->remove(valueID);
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+	return false;
+}
+
+bool removeFile(string relativePath) {
+	char arr[relativePath.length()];
+	strcpy(arr, relativePath.c_str());
+	remove(arr);
+	return true;
+}
+
 void onNotification(Notification const* notification, void* context) {
 	list<NodeInfo*>::iterator it;
 	list<ValueID>::iterator it2;
 	ofstream myfile;
-	ValueID v 			 = notification->GetValueID();
-	uint8 cc_id 		 = v.GetCommandClassId();
-	string cc_name 		 = Manager::Get()->GetCommandClassName(cc_id);
-	string path 		 = "cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
-	bool isNewNode		 = true;
+	ValueID v;
 	string valueLabel;
+	uint8 cc_id;
+	string cc_name;
+	string container;
+	string *ptr_container = &container;
 
-	auto rawNow = chrono::system_clock::now();
-	time_t formatNow = chrono::system_clock::to_time_t(rawNow);
+	v = notification->GetValueID();
+	cc_id = v.GetCommandClassId();
+	cc_name = Manager::Get()->GetCommandClassName(cc_id);
+	
+	bool isNewNode = true;
+
+	string path = "cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
+	int n = path.length();
+	char charArray[n + 1];
+	strcpy(charArray, path.c_str());
+
+	chrono::system_clock::time_point tp_now = chrono::system_clock::now();
+	time_t tt_now = chrono::system_clock::to_time_t(tp_now);
+	const time_t* ptr_tt_now = &tt_now;
+	tm* tm_now = localtime(ptr_tt_now);
+	
+	string formatHour = to_string(tm_now->tm_hour) + ":" + to_string(tm_now->tm_min) + ":" + to_string(tm_now->tm_sec);
+	string formatDate = to_string(tm_now->tm_mday) + "/" + to_string(tm_now->tm_mon);
+	string notifType{ "" };
 
 	pthread_mutex_lock(&g_criticalSection); // lock critical section
-
-	cout << "[NOTIFICATION] node " << to_string(v.GetNodeId()) << endl;
 
 	if (g_homeId == 0) {
 		g_homeId = notification->GetHomeId();
 	}
 
-
 	switch (notification->GetType()) {
 		case Notification::Type_ValueAdded:
-			//We add the value to the value list of the node
-			for(it = g_nodes.begin(); it != g_nodes.end(); ++it ) {
-				if ((*it)->m_nodeId == v.GetNodeId()) {
-					((*it) -> m_values).push_back(v);
-					isNewNode = false;
-				}
+			notifType = "VALUE ADDED";
+			if (addValue(notification)) {
+				cout << "[VALUE] node: " << to_string(notification->GetNodeId()) << ", new_value: " << v.GetId() << endl;
 			}
-
-			// If the node doesn't exist yet, it appends the new one in the node list.
-			// The valueID is already put in its list thanks to the notification.
-			if (isNewNode) {
-				g_nodes.push_back(newNode(notification));
-			}
-
-			myfile.open(path, ios::app);
-			myfile << formatNow << " [VALUE_ADDED] CC: " << cc_name << ", index: " << to_string(v.GetIndex()) << '\n';
-			myfile.close();
-
-			// cout << "[" << time(0) << " : VALUE_ADDED] label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRemoved:
-			//We get from the notification the values's ID and name.
-
-			v = notification->GetValueID();
-
-			//We delete the value from the value list of the node.
-			for(it = g_nodes.begin(); it != g_nodes.end(); ++it )
-			{
-				uint8 nodeId = (*it) -> m_nodeId;
-
-				if (nodeId == v.GetNodeId())
-					((*it) -> m_values).remove(v);
+			notifType = "VALUE REMOVED";
+			if (removeValue(v)) {
+				cout << "[VALUE] node " << to_string(notification->GetNodeId()) << " removed value " << v.GetId() << endl;
 			}
-
-			// cout << "[" << time(0) << " : VALUE_REMOVED] id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueChanged:
+			notifType = "VALUE CHANGED";
+			
 			v = notification->GetValueID();
-			valueLabel = Manager::Get()->GetValueLabel(v);
-
-			cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
+			// cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRefreshed:
-			// cout << NotificationService::valueRefreshed(notification, g_nodes) << endl;
+			notifType = "VALUE REFRESHED";
 
-			for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-				if ((*it)->m_nodeId == notification->GetNodeId()) {
-					for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
-						cout << it2->GetId();
-					}
-					cout << endl;
-				}
-			}
+			// for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
+			// 	if ((*it)->m_nodeId == notification->GetNodeId()) {
+			// 		for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+			// 			cout << it2->GetId();
+			// 		}
+			// 		cout << endl;
+			// 	}
+			// }
 			break;
 		case Notification::Type_Group:
+			notifType = "GROUP";
 			break;
 		case Notification::Type_NodeNew:
+			notifType = "NODE NEW";
 			break;
 		case Notification::Type_NodeAdded:
-			// Search if the current nodeID already exists in the node list.
-			for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-				if ((*it)->m_nodeId == notification->GetNodeId()) {
-					isNewNode = false;
-				}
+			notifType = "NODE ADDED";
+			if (addNode(notification)) {
+				cout << "[NODE] add node " << to_string(notification->GetNodeId()) << endl;
 			}
-
-			if (isNewNode) {
-				g_nodes.push_back(newNode(notification));
-			}
-			cout << "Value added finished" << endl;
-
-			// Manager::Get()->RefreshNodeInfo(notification->GetHomeId(), notification->GetNodeId());
 			break;
 		case Notification::Type_NodeRemoved:
-			for(it = g_nodes.begin(); it != g_nodes.end(); ++it)
-			{
-				if((*it)->m_nodeId == notification->GetNodeId())
-				{
-					g_nodes.remove((*it));
-				}
+			notifType = "NODE REMOVED";
+			if (removeNode(notification)) {
+				cout << "[NODE] remove node " << to_string(notification->GetNodeId()) << endl;
+				removeFile("cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log");
 			}
-			cout << "[" << time(0) << " : NODE_REMOVED]" << "id: " << notification->GetNodeId() << endl;
 			break;
 		case Notification::Type_NodeProtocolInfo:
+			notifType = "NODE PROTOCOL INFO";
 			break;
 		case Notification::Type_NodeNaming:
+			notifType = "NODE NAMING";
 			break;
 		case Notification::Type_NodeEvent:
+			notifType = "NODE EVENT";
 			break;
 		case Notification::Type_PollingDisabled:
+			notifType = "POLLING DISABLED";
 			break;
 		case Notification::Type_PollingEnabled:
+			notifType = "POLLING ENABLED";
 			break;
 		case Notification::Type_SceneEvent:
+			notifType = "SCENE EVENT";
 			break;
 		case Notification::Type_CreateButton:
+			notifType = "CREATE BUTTON";
 			break;
 		case Notification::Type_DeleteButton:
+			notifType = "DELETE BUTTON";
 			break;
 		case Notification::Type_ButtonOn:
+			notifType = "BUTTON ON";
 			break;
 		case Notification::Type_ButtonOff:
+			notifType = "BUTTON OFF";
 			break;
 		case Notification::Type_DriverReady:
+			notifType = "DRIVER READY";
 			break;
 		case Notification::Type_DriverFailed:
+			notifType = "DRIVER FAILED";
 			break;
 		case Notification::Type_DriverReset:
+			notifType = "DRIVER RESET";
 			break;
 		case Notification::Type_EssentialNodeQueriesComplete:
+			notifType = "ESSENTIAL NODE QUERIES COMPLETE";
+			break;
+		case Notification::Type_NodeQueriesComplete:
+			notifType = "NODE QUERIES COMPLETE";
+			break;
+		case Notification::Type_AwakeNodesQueried:
+			notifType = "ALL NODES QUERIED";
 			break;
 		case Notification::Type_AllNodesQueriedSomeDead:
+			notifType = "ALL NODES QUERIED SOME DEAD";
 			break;
 		case Notification::Type_AllNodesQueried:
+			notifType = "ALL NODES QUERIED";
 			if (!g_menuLocked)
 				g_menuLocked = false;
 			break;
 		case Notification::Type_Notification:
+			notifType = "NOTIFICATION";
 			break;
 		case Notification::Type_DriverRemoved:
+			notifType = "DRIVER REMOVED";
 			break;
 		case Notification::Type_ControllerCommand:
-			cout << "Create command class..." << endl;
-			cout << notification->Type_ControllerCommand << notification->GetCommand();
+			notifType = "CONTROLLER COMMAND";
+
+			// cout << "Create command class..." << endl;
+			// cout << notification->Type_ControllerCommand << notification->GetCommand();
 			break;
 		case Notification::Type_NodeReset:
+			notifType = "NODE RESET";
 			break;
 		case Notification::Type_UserAlerts:
+			notifType = "USER ALERTS";
 			break;
 		case Notification::Type_ManufacturerSpecificDBReady:
+			notifType = "MANUFACTURER SPECIFIC DB READY";
 			break;
 		default:
 			break;
+	}
+
+	if (notifType == "") {
+		notifType = to_string(notification->GetType());
+	}
+
+	// cout << ">> " << notifType << endl;
+	
+	if (notification->GetType() != Notification::Type_NodeRemoved) {
+		myfile.open(path, ios::app);
+
+		myfile << "[" << formatDate << ", "<< formatHour << "] " 
+			<< notifType << ", " << cc_name << " --> " 
+			<< to_string(v.GetIndex()) << "(" << valueLabel << ")\n";
+
+		myfile.close();
 	}
 
 	pthread_mutex_unlock(&g_criticalSection); // unlock critical section
@@ -257,7 +388,9 @@ void menu() {
 	list<ValueID>::iterator valueIt;
 	string container;
 	string* ptr_container = &container;
-	bitset<32> b{"00000001000000001100000000000000"};
+	string fileName{ "" };
+	
+	int status;
 
 	while (x --> 0) {
 		std::cout << x << endl;
@@ -396,6 +529,9 @@ void menu() {
 
         break;
 	case 5:
+		cout << "Enter file to remove: ";
+		cin >> fileName;
+	
 		break;
 	case 6:
 		break;
@@ -503,6 +639,24 @@ void menu() {
         cout << "You must enter 1, 2, 3 or 4." << endl;
         break;
     }
+
+	if (fileName.size() > 0) {
+		char arr[fileName.length()];
+		strcpy(arr, fileName.c_str());
+		for (int i = 0; i < fileName.length(); i++) {
+			cout << arr[i];
+		}
+		cout << endl;
+		// int i;
+		// int counter{ fileName.size() + 1 };
+		// char 
+		// const char *fileChar = fileName.c_str();
+		// cout << (*fileChar)[0] << (*fileChar)[1] << endl;
+		// char[counter] fileChar = 
+		// for (i = 0; i < fileName.size(); i++) {
+		// 	fileChar app fileName.at(i);
+		// }
+	}
 
 	// Manager::Get()->AddNode(g_homeId, false);
 	// Manager::Get()->RemoveNode(g_homeId);
