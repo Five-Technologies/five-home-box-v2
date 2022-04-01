@@ -91,7 +91,7 @@ string NotificationService::valueChanged(Notification const* notification, list<
     return output;
 }
 
-bool setSwitch(ValueID valueId, bool state)
+bool Five::setSwitch(ValueID valueId, bool state)
 {   
     if(state)
     {
@@ -104,16 +104,76 @@ bool setSwitch(ValueID valueId, bool state)
     return true;
 }
 
-bool setIntensity(ValueID valueId, int intensity)
-{
 
-    Manager::Get()->SetValue(valueId, intensity);
+
+bool Five::setIntensity(ValueID valueId, IntensityScale intensity) {
+    Manager::Get()->SetValue(valueId, to_string(intensity));
     return true;
 }
 
-bool setColor(ValueID valueId, int hexColor)
+bool Five::setColor(ValueID valueId)
 {
+    list<string> clist = {"red", "green", "blue", "yellow", "purple", "cyan"};
+    list<string>::iterator it;
+    int count{0};
+    for (it = clist.begin(); it != clist.end(); ++it)
+    {
+        count++;
+        cout << count << ". " << (*it) << endl;
+    }
+    cout << "Choose a color:" << endl;
+    string answer;
+    int choice;
+    cin >> answer;
+    choice = stoi(answer);
+    string hexColor;
+    if(choice == 1){
+        hexColor = "#FF00000000";
+    }else if(choice == 2){
+        hexColor = "#00FF000000";
+    }else if(choice == 3){
+        hexColor = "#0000FF0000";
+    }else if(choice == 4){
+        hexColor = "#FFFF000000";
+    }else if(choice == 5){
+        hexColor = "#FF00FF0000";
+    }else if(choice == 6){
+        hexColor = "#00FFFF0000";
+    }
     Manager::Get()->SetValue(valueId, hexColor);
     return true;
 }
+
+bool Five::setList(ValueID valueId){
+    vector<string> vectS;
+    vector<string> *vectSPtr = &vectS;
+    int counter{0};
+    string s;
+    string* ptr = &s;
+    Manager::Get()->GetValueListItems(valueId, vectSPtr) ;
+    vector<string>::iterator it;
+    int choice;
+    string response;
+    Manager::Get()->GetValueListSelection(valueId, ptr);
+    cout << "Current Value: " << s << endl;
+    for(it = vectS.begin(); it != vectS.end(); ++it){
+        counter++;
+        cout << counter << ". " << (*it) << endl;
+    }
+    cout << "Choose your poison" << endl;
+    cin >> response;
+    choice = stoi(response);
+    cout << choice << endl;
+    counter = 0;
+    for(it = vectS.begin(); it != vectS.end(); ++it){
+        counter++;
+        if(choice == counter){
+            cout << (*it) << endl;
+            Manager::Get()->SetValueListSelection(valueId, (*it));
+        }
+    }
+    //Manager::Get()->SetValue(valueId, UnitName);
+    return true;
+}
+
 

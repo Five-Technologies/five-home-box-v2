@@ -1,4 +1,6 @@
 #include <iostream>
+#include <algorithm>
+#include <cstddef>
 #include "Manager.h"
 #include "Options.h"
 #include "Notification.h"
@@ -7,6 +9,7 @@
 #include <thread>
 #include "Five.h"
 #include <fstream>
+#include <bitset>
 
 using namespace OpenZWave;
 using namespace Five;
@@ -19,6 +22,8 @@ static pthread_mutex_t g_criticalSection;
 static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 static bool g_menuLocked{ true };
+
+static list<string> g_setTypes = {"Color", "Switch", "Level"};
 
 NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
@@ -95,7 +100,7 @@ void onNotification(Notification const* notification, void* context) {
 
 	pthread_mutex_lock(&g_criticalSection); // lock critical section
 
-	cout << "[NOTIFICATION] node " << to_string(v.GetNodeId());
+	cout << "[NOTIFICATION] node " << to_string(v.GetNodeId()) << endl;
 
 	if (g_homeId == 0) {
 		g_homeId = notification->GetHomeId();
@@ -252,6 +257,7 @@ void menu() {
 	list<ValueID>::iterator valueIt;
 	string container;
 	string* ptr_container = &container;
+	bitset<32> b{"00000001000000001100000000000000"};
 
 	while (x --> 0) {
 		std::cout << x << endl;
@@ -341,7 +347,6 @@ void menu() {
 			{
 				for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
 				{
-					counterValue++;
 					cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
 					counterValue++;
 				}
@@ -359,30 +364,35 @@ void menu() {
 						cout << "Current value: " << *ptr_container << endl;
 						cout << "Set to what ? ";
 						cin >> response;
+						int test = 0;
+						int* testptr = &test;
+						//setUnit((*valueIt));
 						Manager::Get()->SetValue((*valueIt), response);
+						Manager::Get()->GetValueAsInt((*valueIt), testptr);
+						cout << *testptr;
 						break;
 					}
 				}
 				break;
 			}
 		}
-		cin >> response;
-		choice = stoi(response);
-		counterNode = 0;
-		counterValue = 0;
+		// cin >> response;
+		// choice = stoi(response);
+		// counterNode = 0;
+		// counterValue = 0;
 		
-		for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
-		{
-			counterValue++;
-			if (counterValue == choice)
-				{
-					Manager::Get()->GetValueAsString(*valueIt, ptr_container);
-					cout << "The current value is: " << ptr_container << endl;
-					cout << "Enter the new value: " << endl;
-					cin >> response;
-					Manager::Get()->SetValue(*valueIt, response);
-				}
-		}
+		// for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
+		// {
+		// 	counterValue++;
+		// 	if (counterValue == choice)
+		// 		{
+		// 			Manager::Get()->GetValueAsString(*valueIt, ptr_container);
+		// 			cout << "The current value is: " << ptr_container << endl;
+		// 			cout << "Enter the new value: " << endl;
+		// 			cin >> response;
+		// 			Manager::Get()->SetValue(*valueIt, response);
+		// 		}
+		// }
 
         break;
 	case 5:
@@ -410,10 +420,17 @@ void menu() {
 			{
 				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
 				{
+					if (ValueID::ValueType_List == (*valueIt).GetType())
+					{
+						counterValue++;
+						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+					}
+					
+					
 					if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
 					{
-						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
 						counterValue++;
+						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
 					}
 				}
 
@@ -425,29 +442,57 @@ void menu() {
 		counterValue = 0;
 		for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
 		{
-			if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+			if (ValueID::ValueType_List == (*valueIt).GetType())
 			{
+				counterValue++;
+				if (choice == counterValue)
+				{
+					setList((*valueIt));
+				}
+				
+			}else if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+			{
+				counterValue++;
 				if (choice == counterValue)
 				{
 					string valLabel = Manager::Get()->GetValueLabel(*valueIt);
 					cout << "You chose " << valLabel << endl;
 					Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-					cout << "Current value: " << *ptr_container << endl;
-					cout << "Set to what ? ";
-					cin >> response;
+					// cout << "Current value: " << *ptr_container << endl;
+					// cout << "Set to what ? ";
+					//cin >> response;
 
 					//Checking value type to choose the right method
 					if(valLabel == "Color")
 					{
-						bool verif = Five::setColor((*valueIt), response);
+						setColor(*valueIt);
 					} else if(valLabel == "Level")
 					{
-						bool verif = Five::setIntensity((*valueIt), stoi(response));
+						cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
+						cin >> response;
+						choice = stoi(response);
+						switch(choice){
+							case 1:
+								setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+								break;
+							case 2:
+								setIntensity((*valueIt), IntensityScale::HIGH);
+								break;
+							case 3:
+								setIntensity((*valueIt), IntensityScale::MEDIUM);
+								break;
+							case 4:
+								setIntensity((*valueIt), IntensityScale::LOW);
+								break;
+							case 5:
+								setIntensity((*valueIt), IntensityScale::VERY_LOW);
+								break;
+						}
+						
 					}
 					//Manager::Get()->SetValue((*valueIt), response);
 					break;
 				}
-				counterValue++;
 			}
 		}
     default:

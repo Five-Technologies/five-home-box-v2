@@ -13,6 +13,14 @@ namespace Five {
         string			m_nodeType;
     } NodeInfo;
 
+    enum IntensityScale {
+        VERY_HIGH=99,
+        HIGH=30,
+        MEDIUM=20,
+        LOW=10,
+        VERY_LOW=2,
+        OFF=0
+    };
     uint32 homeId;
     list<NodeInfo*> nodes{};
     
@@ -20,8 +28,9 @@ namespace Five {
     bool isAlive(uint8 nodeId);
 
     bool setSwitch(ValueID valueId, bool state);
-    bool setIntensity(ValueID valueId, float intensity);
-    bool setColor(ValueID valueId, int hexColor);
+    bool setIntensity(ValueID valueId, IntensityScale intensity);
+    bool setColor(ValueID valueId);
+    bool setList(ValueID valueId);
 
     NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes);
 
