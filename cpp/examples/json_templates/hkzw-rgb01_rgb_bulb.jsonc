@@ -1,7 +1,7 @@
 {
     "id": 7,
     "model": "hkzw-rgb01_rgb_bulb",
-    "type": "rgb_bulb",
+    "type": "rgb_light",
     "attributes": {
         "level": 99,
         "bright": false,
