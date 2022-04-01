@@ -11,12 +11,12 @@ namespace Five {
         list<ValueID>	m_values;
         string			m_name;
         string			m_nodeType;
+        time_t          m_sync;
     } NodeInfo;
 
     uint32 homeId;
     list<NodeInfo*> nodes{};
     
-    NodeInfo getNodeInfo(Notification const* notification, list<NodeInfo*> nodes);
     bool isAlive(uint8 nodeId);
 
     bool setSwitch(ValueID valueId, bool state);
