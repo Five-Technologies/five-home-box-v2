@@ -34,6 +34,8 @@ bool removeNode(Notification const* notification);
 
 int main(int argc, char const *argv[])
 {
+	cout << "Start process..." << endl;
+
 	pthread_mutexattr_t mutexattr;
 	string response;
 
@@ -42,8 +44,6 @@ int main(int argc, char const *argv[])
 	pthread_mutex_init( &g_criticalSection, &mutexattr );
 	pthread_mutexattr_destroy( &mutexattr );
 	pthread_mutex_lock( &initMutex );
-
-	printf("Starting MinOZW with OpenZWave Version %s\n", Manager::getVersionLongAsString().c_str());
 
 	Options::Create("config/", "cpp/examples/cache/", "");
 	Options::Get()->Lock();
@@ -228,13 +228,13 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_ValueAdded:
 			notifType = "VALUE ADDED";
 			if (addValue(notification)) {
-				cout << "[VALUE] node: " << to_string(notification->GetNodeId()) << ", new_value: " << v.GetId() << endl;
+				// cout << "[VALUE] node: " << to_string(notification->GetNodeId()) << ", new_value: " << v.GetId() << endl;
 			}
 			break;
 		case Notification::Type_ValueRemoved:
-			notifType = "VALUE REMOVED";
+			// notifType = "VALUE REMOVED";
 			if (removeValue(v)) {
-				cout << "[VALUE] node " << to_string(notification->GetNodeId()) << " removed value " << v.GetId() << endl;
+				// cout << "[VALUE] node " << to_string(notification->GetNodeId()) << " removed value " << v.GetId() << endl;
 			}
 			break;
 		case Notification::Type_ValueChanged:
@@ -262,13 +262,13 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "NODE NEW";
 			break;
 		case Notification::Type_NodeAdded:
-			notifType = "NODE ADDED";
+			// notifType = "NODE ADDED";
 			if (addNode(notification)) {
 				cout << "[NODE] add node " << to_string(notification->GetNodeId()) << endl;
 			}
 			break;
 		case Notification::Type_NodeRemoved:
-			notifType = "NODE REMOVED";
+			// notifType = "NODE REMOVED";
 			if (removeNode(notification)) {
 				cout << "[NODE] remove node " << to_string(notification->GetNodeId()) << endl;
 				removeFile("cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log");
@@ -280,7 +280,9 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_NodeNaming:
 			notifType = "NODE NAMING";
 			break;
-		case Notification::Type_NodeEvent:
+		case Notification:		thread t1(menu);
+		t1.join();
+:Type_NodeEvent:
 			notifType = "NODE EVENT";
 			break;
 		case Notification::Type_PollingDisabled:
@@ -359,8 +361,8 @@ void onNotification(Notification const* notification, void* context) {
 		notifType = to_string(notification->GetType());
 	}
 
-	// cout << ">> " << notifType << endl;
-	
+	cout << ">> " << notifType << endl;
+
 	if (notification->GetType() != Notification::Type_NodeRemoved) {
 		myfile.open(path, ios::app);
 
@@ -389,7 +391,7 @@ void menu() {
 	int status;
 
 	while (x --> 0) {
-		std::cout << x << endl;
+		std::cout << "..." << endl;
 		this_thread::sleep_for(chrono::seconds(1));
 	}
 
@@ -523,8 +525,6 @@ void menu() {
 
         break;
 	case 5:
-		cout << "Enter file to remove: ";
-		cin >> fileName;
 	
 		break;
 	case 6:
@@ -535,24 +535,6 @@ void menu() {
         cout << "You must enter 1, 2, 3 or 4." << endl;
         break;
     }
-
-	if (fileName.size() > 0) {
-		char arr[fileName.length()];
-		strcpy(arr, fileName.c_str());
-		for (int i = 0; i < fileName.length(); i++) {
-			cout << arr[i];
-		}
-		cout << endl;
-		// int i;
-		// int counter{ fileName.size() + 1 };
-		// char 
-		// const char *fileChar = fileName.c_str();
-		// cout << (*fileChar)[0] << (*fileChar)[1] << endl;
-		// char[counter] fileChar = 
-		// for (i = 0; i < fileName.size(); i++) {
-		// 	fileChar app fileName.at(i);
-		// }
-	}
 
 	// Manager::Get()->AddNode(g_homeId, false);
 	// Manager::Get()->RemoveNode(g_homeId);
