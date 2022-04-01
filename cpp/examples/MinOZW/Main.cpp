@@ -58,9 +58,10 @@ int main(int argc, char const *argv[])
 	string port = "/dev/ttyACM0";
 	Manager::Get()->AddDriver(port);
 
-	
-	thread t1(menu);
-	t1.join();
+	while(true) {
+		thread t1(menu);
+		t1.join();
+	}
 
 
 	pthread_cond_wait(&initCond, &initMutex);
@@ -497,12 +498,12 @@ void menu() {
 						cout << "Current value: " << *ptr_container << endl;
 						cout << "Set to what ? ";
 						cin >> response;
-						int test = 0;
-						int* testptr = &test;
+						// int test = 0;
+						// int* testptr = &test;
 						//setUnit((*valueIt));
 						Manager::Get()->SetValue((*valueIt), response);
-						Manager::Get()->GetValueAsInt((*valueIt), testptr);
-						cout << *testptr;
+						//Manager::Get()->GetValueAsInt((*valueIt), testptr);
+						//cout << *testptr;
 						break;
 					}
 				}
@@ -601,7 +602,7 @@ void menu() {
 					if(valLabel == "Switch"){
 						cout << "True(1) or False(0) ?" << endl;
 						cin >> response;
-						choice << stoi(response);
+						choice = stoi(response);
 						setSwitch((*valueIt), choice);
 					}else if(valLabel == "Color")
 					{

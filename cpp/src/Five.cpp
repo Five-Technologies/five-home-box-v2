@@ -95,11 +95,13 @@ bool Five::setSwitch(ValueID valueId, bool state)
 {   
     if(state)
     {
-        Manager::Get()->SetValue(valueId, "True");
+        cout << "if" << endl;
+        Manager::Get()->SetValue(valueId, state);
     }
     else
     {
-        Manager::Get()->SetValue(valueId, "False");
+        cout << "else" << endl;
+        Manager::Get()->SetValue(valueId, state);
     }
     return true;
 }

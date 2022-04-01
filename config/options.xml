@@ -6,7 +6,7 @@
   <Option name="logging" value="true" />
   
   <!-- Should we Output Log Messages on the Console. Set to True for Foreground Processes -->
-  <Option name="ConsoleOutput" value="true" />
+  <Option name="ConsoleOutput" value="false" />
   
   <!-- The Name of the Log File -->
   <Option name="LogFileName" value="OZW.log" />
