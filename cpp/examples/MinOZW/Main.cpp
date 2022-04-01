@@ -51,10 +51,10 @@ int main(int argc, char const *argv[])
 	string port = "/dev/ttyACM0";
 	Manager::Get()->AddDriver(port);
 
-	while (true) {
-		thread t1(menu);
-		t1.join();
-	}
+	
+	thread t1(menu);
+	t1.join();
+
 
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
@@ -404,8 +404,7 @@ void menu() {
 	case 8:
 		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
 		{
-			counterNode++;
-			cout << counterNode << ". " << (*nodeIt)->m_name << endl;
+			cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
 		}
 
 		cout << "\nChoose what node you want a value from: " << endl;
@@ -416,7 +415,7 @@ void menu() {
 		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
 		{
 			counterNode++;
-			if (counterNode == choice)
+			if ((*nodeIt)->m_nodeId == choice)
 			{
 				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
 				{
@@ -463,7 +462,12 @@ void menu() {
 					//cin >> response;
 
 					//Checking value type to choose the right method
-					if(valLabel == "Color")
+					if(valLabel == "Switch"){
+						cout << "True(1) or False(0) ?" << endl;
+						cin >> response;
+						choice << stoi(response);
+						setSwitch((*valueIt), choice);
+					}else if(valLabel == "Color")
 					{
 						setColor(*valueIt);
 					} else if(valLabel == "Level")
