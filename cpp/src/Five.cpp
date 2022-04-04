@@ -183,4 +183,12 @@ bool setVolume(ValueID valueId, IntensityScale intensity){
     return true;
 }
 
+bool setDuration(ValueID valueId){
+    string response;
+    cout << "Please enter a duration in seconds:" << endl;
+    cin >> response;
+    Manager::Get()->SetValue(valueId, response);
+    return true;
+}
+
 

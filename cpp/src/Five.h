@@ -35,6 +35,7 @@ namespace Five
     bool setColor(ValueID valueId);
     bool setList(ValueID valueId);
     bool setVolume(ValueID valueId, IntensityScale intensity);
+    bool setDuration(ValueID valueId);
 
     NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo *> g_nodes);
 

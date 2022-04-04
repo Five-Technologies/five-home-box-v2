@@ -25,7 +25,7 @@ static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 static bool g_menuLocked{ true };
 
-static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration"};
+static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume"};
 
 NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
@@ -381,6 +381,7 @@ void onNotification(Notification const* notification, void* context) {
 
 void menu() {
 	string response;
+	list<string>::iterator sIt;
 	int choice{ 0 };
 	int x{ 5 };
 	int counterNode{0};
@@ -539,6 +540,18 @@ void menu() {
 	
 		break;
 	case 6:
+		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
+			cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
+		}
+		cout << "which node do you want to heal ?";
+		cin >> response;
+		choice = stoi(response);
+
+		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
+			if ((*nodeIt)->m_nodeId == choice){
+				Manager::Get()->HealNetworkNode((*nodeIt)->m_homeId, (*nodeIt)->m_nodeId, true);
+			}
+		}
 		break;
 	case 7:
 		break;
@@ -552,10 +565,9 @@ void menu() {
 
 		cin >> response;
 		choice = stoi(response);
-		counterNode = 0;
+		//counterNode = 0;
 		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
 		{
-			counterNode++;
 			if ((*nodeIt)->m_nodeId == choice)
 			{
 				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
@@ -566,12 +578,14 @@ void menu() {
 						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
 					}
 					
-					
-					if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
-					{
-						counterValue++;
-						cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+					for(sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
+						if (Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos)
+						{
+							counterValue++;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+						}
 					}
+					
 				}
 
 				break;
@@ -590,7 +604,84 @@ void menu() {
 					setList((*valueIt));
 				}
 				
-			}else if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+			}else for (sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
+				if(Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos){
+					counterValue++;
+					if (choice == counterValue)
+					{
+						string valLabel = Manager::Get()->GetValueLabel(*valueIt);
+						cout << "You chose " << valLabel << endl;
+						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+						// cout << "Current value: " << *ptr_container << endl;
+						// cout << "Set to what ? ";
+						//cin >> response;
+
+						//Checking value type to choose the right method
+						if(valLabel.find("Switch") != string::npos){
+							cout << "True(1) or False(0) ?" << endl;
+							cin >> response;
+							choice = stoi(response);
+							setSwitch((*valueIt), choice);
+						}else if(valLabel.find("Color") != string::npos)
+						{
+							setColor(*valueIt);
+						} else if(valLabel.find("Level") != string::npos)
+						{
+							cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
+							cin >> response;
+							choice = stoi(response);
+							switch(choice){
+								case 1:
+									setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+									break;
+								case 2:
+									setIntensity((*valueIt), IntensityScale::HIGH);
+									break;
+								case 3:
+									setIntensity((*valueIt), IntensityScale::MEDIUM);
+									break;
+								case 4:
+									setIntensity((*valueIt), IntensityScale::LOW);
+									break;
+								case 5:
+									setIntensity((*valueIt), IntensityScale::VERY_LOW);
+									break;
+							}
+							
+						}else if(valLabel.find("Volume") != string::npos)
+						{
+							cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
+							cin >> response;
+							choice = stoi(response);
+							switch(choice){
+								case 1:
+									setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+									break;
+								case 2:
+									setIntensity((*valueIt), IntensityScale::HIGH);
+									break;
+								case 3:
+									setIntensity((*valueIt), IntensityScale::MEDIUM);
+									break;
+								case 4:
+									setIntensity((*valueIt), IntensityScale::LOW);
+									break;
+								case 5:
+									setIntensity((*valueIt), IntensityScale::VERY_LOW);
+									break;
+							}
+							
+						}else if(valLabel.find("Duration") != string::npos)
+						{
+							setDuration((*valueIt));
+						}
+						//Manager::Get()->SetValue((*valueIt), response);
+						break;
+					}
+				}
+			}
+			
+			/*if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
 			{
 				counterValue++;
 				if (choice == counterValue)
@@ -638,7 +729,7 @@ void menu() {
 					//Manager::Get()->SetValue((*valueIt), response);
 					break;
 				}
-			}
+			}*/
 		}
     default:
         cout << "You must enter 1, 2, 3 or 4." << endl;
