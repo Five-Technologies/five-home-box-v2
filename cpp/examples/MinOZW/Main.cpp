@@ -58,10 +58,10 @@ int main(int argc, char const *argv[])
 	string port = "/dev/ttyACM0";
 	Manager::Get()->AddDriver(port);
 
-	while(true) {
-		thread t1(menu);
-		t1.join();
-	}
+	
+	thread t1(menu);
+	t1.join();
+
 
 
 	pthread_cond_wait(&initCond, &initMutex);

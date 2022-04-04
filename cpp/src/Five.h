@@ -16,14 +16,13 @@ namespace Five
         time_t m_sync;
     } NodeInfo;
 
-    enum IntensityScale
-    {
-        VERY_HIGH = 99,
-        HIGH = 30,
-        MEDIUM = 20,
-        LOW = 10,
-        VERY_LOW = 2,
-        OFF = 0
+    enum IntensityScale {
+        VERY_HIGH=99,
+        HIGH=30,
+        MEDIUM=20,
+        LOW=10,
+        VERY_LOW=2,
+        OFF=0
     };
     uint32 homeId;
     list<NodeInfo *> nodes{};
