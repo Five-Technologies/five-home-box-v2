@@ -25,7 +25,7 @@ static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 static bool g_menuLocked{ true };
 
-static list<string> g_setTypes = {"Color", "Switch", "Level"};
+static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration"};
 
 NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
@@ -396,6 +396,10 @@ void menu() {
 	while (x --> 0) {
 		std::cout << x << endl;
 		this_thread::sleep_for(chrono::seconds(1));
+	}
+
+	if (std::find(g_setTypes.begin(), g_setTypes.end(), "Duration") != g_setTypes.end()){
+		cout << "Works" << endl;
 	}
 
 	cout << "----- MENU -----" << endl << endl;

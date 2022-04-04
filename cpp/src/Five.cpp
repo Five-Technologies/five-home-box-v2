@@ -178,4 +178,9 @@ bool Five::setList(ValueID valueId){
     return true;
 }
 
+bool setVolume(ValueID valueId, IntensityScale intensity){
+    Manager::Get()->SetValue(valueId, to_string(intensity));
+    return true;
+}
+
 
