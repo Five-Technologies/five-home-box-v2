@@ -178,12 +178,12 @@ bool Five::setList(ValueID valueId){
     return true;
 }
 
-bool setVolume(ValueID valueId, IntensityScale intensity){
+bool Five::setVolume(ValueID valueId, IntensityScale intensity){
     Manager::Get()->SetValue(valueId, to_string(intensity));
     return true;
 }
 
-bool setDuration(ValueID valueId){
+bool Five::setDuration(ValueID valueId){
     string response;
     cout << "Please enter a duration in seconds:" << endl;
     cin >> response;

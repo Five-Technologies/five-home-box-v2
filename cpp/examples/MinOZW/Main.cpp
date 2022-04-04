@@ -436,7 +436,7 @@ void menu() {
 			cout << counterNode << ". " << (*nodeIt)->m_name << endl;
 		}
 
-		cout << "\nChoose what node you want a value from: " << endl;
+		cout << "\nChoose the node from which you want the values: " << endl;
 
 		cin >> response;
 		choice = stoi(response);
@@ -446,22 +446,23 @@ void menu() {
 			counterNode++;
 			if (counterNode == choice) {
 				for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++) {
-					cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
+					Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+					cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << " : " << container << endl;
 					counterValue++;
 				}
 				
-				cout << "\nChoose a valueID: ";
-				cin >> response;
-				choice = stoi(response);
+				// cout << "\nChoose a valueID: ";
+				// cin >> response;
+				// choice = stoi(response);
 
-				for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
-					if (choice == std::distance((*nodeIt)->m_values.begin(), valueIt)) {
-						cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
-						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-						cout << "Current value: " << *ptr_container << endl;
-						break;
-					}
-				}
+				// for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
+				// 	if (choice == std::distance((*nodeIt)->m_values.begin(), valueIt)) {
+				// 		cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
+				// 		Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+				// 		cout << "Current value: " << *ptr_container << endl;
+				// 		break;
+				// 	}
+				// }
 			}
 		}
         break;
@@ -543,7 +544,7 @@ void menu() {
 		for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
 			cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
 		}
-		cout << "which node do you want to heal ?";
+		cout << "Which node do you want to heal ?";
 		cin >> response;
 		choice = stoi(response);
 
