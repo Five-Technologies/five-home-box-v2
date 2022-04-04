@@ -339,7 +339,7 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_AllNodesQueried:
 			notifType = "ALL NODES QUERIED";
-			cout << "\n[ALL_NODES_QUERIED]               node " << to_string(v.GetNodeId()) << endl;
+			cout << "\n✅ [ALL_NODES_QUERIED]               node " << to_string(v.GetNodeId()) << endl;
 			cout << "   - total: " << g_nodes.size() << endl;
 			cout << "   - alive: " << endl;
 			cout << "   - dead : " << endl;
@@ -348,7 +348,7 @@ void onNotification(Notification const* notification, void* context) {
 			
 			if (g_menuLocked) {
 				thread t1(menu);
-				t1.join();
+				t1.detach();
 				g_menuLocked = false;
 			}
 			break;
