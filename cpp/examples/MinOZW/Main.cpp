@@ -1,4 +1,6 @@
 #include <iostream>
+#include <algorithm>
+#include <cstddef>
 #include "Manager.h"
 #include "Options.h"
 #include "Notification.h"
@@ -28,6 +30,8 @@ static time_t timet_start = chrono::high_resolution_clock::to_time_t(start);
 static time_t *ptr_start = &timet_start;
 static tm* tm_start = localtime(ptr_start);
 
+static list<string> g_setTypes = {"Color", "Switch", "Level"};
+
 NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
 void menu();
@@ -39,12 +43,7 @@ bool removeNode(Notification const* notification);
 
 int main(int argc, char const *argv[])
 {
-	auto end = chrono::high_resolution_clock::now();
-	time_t endTime = chrono::system_clock::to_time_t(end);
-	chrono::duration<double> elapsed_seconds = end-start;
-
-	cout << "finished computation at " << ctime(&endTime)
-		 << "elapsed time " << elapsed_seconds.count() << "s\n";
+	cout << "Start process..." << endl;
 
 	pthread_mutexattr_t mutexattr;
 	string response;
@@ -55,8 +54,6 @@ int main(int argc, char const *argv[])
 	pthread_mutexattr_destroy( &mutexattr );
 	pthread_mutex_lock( &initMutex );
 
-	printf("Starting MinOZW with OpenZWave Version %s\n", Manager::getVersionLongAsString().c_str());
-
 	Options::Create("config/", "cpp/examples/cache/", "");
 	Options::Get()->Lock();
 
@@ -65,11 +62,6 @@ int main(int argc, char const *argv[])
 
 	string port = "/dev/ttyACM0";
 	Manager::Get()->AddDriver(port);
-
-	// while (true) {
-	// 	thread t1(menu);
-	// 	t1.join();
-	// }
 
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
@@ -247,7 +239,7 @@ void onNotification(Notification const* notification, void* context) {
 			}
 			break;
 		case Notification::Type_ValueRemoved:
-			notifType = "VALUE REMOVED";
+			// notifType = "VALUE REMOVED";
 			if (removeValue(v)) {
 				cout << "[VALUE_REMOVED]                   node " << to_string(notification->GetNodeId()) << " value " << v.GetId() << endl;
 			}
@@ -277,13 +269,13 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "NODE NEW";
 			break;
 		case Notification::Type_NodeAdded:
-			notifType = "NODE ADDED";
+			// notifType = "NODE ADDED";
 			if (addNode(notification)) {
 				cout << "[NODE_ADDED]                      node " << to_string(notification->GetNodeId()) << endl;
 			}
 			break;
 		case Notification::Type_NodeRemoved:
-			notifType = "NODE REMOVED";
+			// notifType = "NODE REMOVED";
 			if (removeNode(notification)) {
 				cout << "[NODE_REMOVED]                    node " << to_string(notification->GetNodeId()) << endl;
 				removeFile("cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log");
@@ -537,25 +529,7 @@ void menu() {
 					break;
 				}
 			}
-			cin >> response;
-			choice = stoi(response);
-			counterNode = 0;
-			counterValue = 0;
-			
-			for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
-			{
-				counterValue++;
-				if (counterValue == choice)
-					{
-						Manager::Get()->GetValueAsString(*valueIt, ptr_container);
-						cout << "The current value is: " << ptr_container << endl;
-						cout << "Enter the new value: " << endl;
-						cin >> response;
-						Manager::Get()->SetValue(*valueIt, response);
-					}
-			}
-
-			break;
+        break;
 		case 5:
 			cout << "Enter file to remove: ";
 			cin >> fileName;
@@ -565,6 +539,104 @@ void menu() {
 			break;
 		case 7:
 			break;
+		case 8:
+			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			{
+				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
+			}
+
+			cout << "\nChoose what node you want a value from: " << endl;
+
+			cin >> response;
+			choice = stoi(response);
+			counterNode = 0;
+			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			{
+				counterNode++;
+				if ((*nodeIt)->m_nodeId == choice)
+				{
+					for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+					{
+						if (ValueID::ValueType_List == (*valueIt).GetType())
+						{
+							counterValue++;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+						}
+						
+						
+						if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+						{
+							counterValue++;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+						}
+					}
+
+					break;
+				}
+			}
+			cin >> response;
+			choice = stoi(response);
+			counterValue = 0;
+			for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+			{
+				if (ValueID::ValueType_List == (*valueIt).GetType())
+				{
+					counterValue++;
+					if (choice == counterValue)
+					{
+						setList((*valueIt));
+					}
+					
+				}else if ((std::find(g_setTypes.begin(), g_setTypes.end(), Manager::Get()->GetValueLabel((*valueIt))) != g_setTypes.end()))
+				{
+					counterValue++;
+					if (choice == counterValue)
+					{
+						string valLabel = Manager::Get()->GetValueLabel(*valueIt);
+						cout << "You chose " << valLabel << endl;
+						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+						// cout << "Current value: " << *ptr_container << endl;
+						// cout << "Set to what ? ";
+						//cin >> response;
+
+						//Checking value type to choose the right method
+						if(valLabel == "Switch"){
+							cout << "True(1) or False(0) ?" << endl;
+							cin >> response;
+							choice << stoi(response);
+							setSwitch((*valueIt), choice);
+						}else if(valLabel == "Color")
+						{
+							setColor(*valueIt);
+						} else if(valLabel == "Level")
+						{
+							cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
+							cin >> response;
+							choice = stoi(response);
+							switch(choice){
+								case 1:
+									setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+									break;
+								case 2:
+									setIntensity((*valueIt), IntensityScale::HIGH);
+									break;
+								case 3:
+									setIntensity((*valueIt), IntensityScale::MEDIUM);
+									break;
+								case 4:
+									setIntensity((*valueIt), IntensityScale::LOW);
+									break;
+								case 5:
+									setIntensity((*valueIt), IntensityScale::VERY_LOW);
+									break;
+							}
+							
+						}
+						//Manager::Get()->SetValue((*valueIt), response);
+						break;
+					}
+				}
+			}
 		default:
 			cout << "You must enter 1, 2, 3 or 4." << endl;
 			break;
@@ -576,22 +648,12 @@ void menu() {
 			for (int i = 0; i < fileName.length(); i++) {
 				cout << arr[i];
 			}
-			cout << endl;
-			// int i;
-			// int counter{ fileName.size() + 1 };
-			// char 
-			// const char *fileChar = fileName.c_str();
-			// cout << (*fileChar)[0] << (*fileChar)[1] << endl;
-			// char[counter] fileChar = 
-			// for (i = 0; i < fileName.size(); i++) {
-			// 	fileChar app fileName.at(i);
-			// }
-		}
 
-		// Manager::Get()->AddNode(g_homeId, false);
-		// Manager::Get()->RemoveNode(g_homeId);
-		// cout << "Node removed" << endl;
-		// Manager::Get()->TestNetwork(g_homeId, 5);
-		// cout << "Name: " << Manager::Get()->GetNodeProductName(g_homeId, 2).c_str() << endl;
+			// Manager::Get()->AddNode(g_homeId, false);
+			// Manager::Get()->RemoveNode(g_homeId);
+			// cout << "Node removed" << endl;
+			// Manager::Get()->TestNetwork(g_homeId, 5);
+			// cout << "Name: " << Manager::Get()->GetNodeProductName(g_homeId, 2).c_str() << endl;
+		}
 	}
 }
