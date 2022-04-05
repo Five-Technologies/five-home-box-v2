@@ -29,12 +29,15 @@ namespace Five
 
     bool isAlive(uint8 nodeId);
 
-    bool setSwitch(ValueID valueId, bool state);
+    bool setSwitch(ValueID valueId);
     bool setIntensity(ValueID valueId, IntensityScale intensity);
     bool setColor(ValueID valueId);
     bool setList(ValueID valueId);
     bool setVolume(ValueID valueId, IntensityScale intensity);
     bool setDuration(ValueID valueId);
+    bool setInt(ValueID valueId);
+    bool setBool(ValueID valueId);
+    bool setButton(ValueID valueId);
 
     NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo *> g_nodes);
 
