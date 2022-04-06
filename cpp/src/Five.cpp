@@ -88,18 +88,20 @@ bool Five::ValueChanged(Notification const* notification, list<NodeInfo*> *nodes
     return true;
 }
 
-bool Five::SetSwitch(ValueID valueId, bool state)
+bool Five::setSwitch(ValueID valueId)
 {   
-    if(state)
-    {
-        cout << "if" << endl;
-        Manager::Get()->SetValue(valueId, state);
+    string answer;
+    bool state(0);
+    cout << "true(1) or false(0) ?" << endl;
+	cin >> answer;
+
+    if(answer=="true" || answer=="True" || answer == "1"){
+        state = true;
+    }else if(answer == "false" || answer == "False" || answer == "0"){
+        state = false;
     }
-    else
-    {
-        cout << "else" << endl;
-        Manager::Get()->SetValue(valueId, state);
-    }
+
+    Manager::Get()->SetValue(valueId, state);
     return true;
 }
 
@@ -112,33 +114,9 @@ bool Five::SetIntensity(ValueID valueId, IntensityScale intensity) {
 
 bool Five::SetColor(ValueID valueId)
 {
-    list<string> clist = {"red", "green", "blue", "yellow", "purple", "cyan"};
-    list<string>::iterator it;
-    int count{0};
-    for (it = clist.begin(); it != clist.end(); ++it)
-    {
-        count++;
-        cout << count << ". " << (*it) << endl;
-    }
-    cout << "Choose a color:" << endl;
-    string answer;
-    int choice;
-    cin >> answer;
-    choice = stoi(answer);
+    cout << "Enter hexadecimal color" << endl;
     string hexColor;
-    if(choice == 1){
-        hexColor = "#FF00000000";
-    }else if(choice == 2){
-        hexColor = "#00FF000000";
-    }else if(choice == 3){
-        hexColor = "#0000FF0000";
-    }else if(choice == 4){
-        hexColor = "#FFFF000000";
-    }else if(choice == 5){
-        hexColor = "#FF00FF0000";
-    }else if(choice == 6){
-        hexColor = "#00FFFF0000";
-    }
+    cin >> hexColor;
     Manager::Get()->SetValue(valueId, hexColor);
     return true;
 }
@@ -149,6 +127,7 @@ bool Five::SetList(ValueID valueId){
     int counter{0};
     string s;
     string* ptr = &s;
+    cout << valueId.GetTypeAsString() << endl;
     Manager::Get()->GetValueListItems(valueId, vectSPtr) ;
     vector<string>::iterator it;
     int choice;
@@ -188,6 +167,40 @@ bool Five::SetDuration(ValueID valueId) {
     return true;
 }
 
+bool Five::setInt(ValueID valueId){
+    string response;
+    cout << "Please enter a value in Int:" << endl;
+    cin >> response;
+    Manager::Get()->SetValue(valueId, response);
+    return true;
+}
+
+bool Five::setBool(ValueID valueId)
+{   
+    string answer;
+    bool state(0);
+    cout << "true(1) or false(0) ?" << endl;
+	cin >> answer;
+	if(answer == "true" || answer == "True" || answer == "1"){
+        state = true;
+    }else if(answer == "false" || answer == "False" || answer == "0"){
+        state = false;
+    }
+
+    Manager::Get()->SetValue(valueId, state);
+    return true;
+}
+
+bool Five::setButton(ValueID valueId){
+    string input;
+    cout << "Press a key to push button" << endl;
+    cin >> input;
+    Manager::Get()->PressButton(valueId);
+    cout << "Press a key to release button" << endl;
+    cin >> input;
+    Manager::Get()->ReleaseButton(valueId);
+    return true;
+}
 
 // Create a new NodeInfo.
 NodeInfo* Five::CreateNode(Notification const* notification) {

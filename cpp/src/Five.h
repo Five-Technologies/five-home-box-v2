@@ -58,6 +58,9 @@ namespace Five
     bool SetList(ValueID valueID);
     bool SetVolume(ValueID valueID, IntensityScale intensity);
     bool SetDuration(ValueID valueID);
+    bool setInt(ValueID valueId);
+    bool setBool(ValueID valueId);
+    bool setButton(ValueID valueId);
 
     // Node methods
     

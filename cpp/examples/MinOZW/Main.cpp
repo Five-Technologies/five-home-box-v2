@@ -340,11 +340,14 @@ void onNotification(Notification const* notification, void* context) {
 }
 
 void menu() {
-	while(true){
+	bool menuRun(1);
+	while(menuRun){
 		string response;
+		bool isOk = false;
 		list<string>::iterator sIt;
 		int choice{ 0 };
-		int x{ 2 };
+		int listchoice{ 0 };
+		int x{ 5 };
 		int counterNode{0};
 		int counterValue{0};
 		list<NodeInfo*>::iterator nodeIt;
@@ -406,7 +409,7 @@ void menu() {
 				if (counterNode == choice) {
 					for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++) {
 						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-						cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << " : " << container << endl;
+						cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << " : " << *ptr_container << endl;
 						counterValue++;
 					}
 					
@@ -446,18 +449,26 @@ void menu() {
 				{
 					for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
 					{
-						cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
-						counterValue++;
+						if(!Manager::Get()->IsValueReadOnly(*valueIt)){
+							counterValue++;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
+						}
+						
 					}
 
 					cout << "\nChoose a valueID: ";
 					cin >> response;
+					counterValue = 0;
 					choice = stoi(response);
 
 					for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
 						// Manager::Get()->GetValueAsString(*valueIt, ptr_container);
 						// cout << Manager::Get()->GetValueLabel(*valueIt) << ": " << *ptr_container << endl;
-						if (choice == std::distance((*nodeIt)->m_values.begin(), valueIt)) {
+						if(!Manager::Get()->IsValueReadOnly(*valueIt)){
+							counterValue++;
+						}
+						
+						if (choice == counterValue) {
 							cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
 							Manager::Get()->GetValueAsString((*valueIt), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
@@ -495,9 +506,22 @@ void menu() {
 
 			break;
 		case 5:
-			cout << "Enter file to remove: ";
-			cin >> fileName;
-		
+			cout << "Choose between: " << endl;
+			cout << "1. Hard Reset (Z-Wave Network will be deleted during reset)\n" << "2. Soft Reset (Z-Wave Network will be kept during reset)\n";
+			while(!isOk){
+				cin >> response;
+				choice = stoi(response);
+				if(choice == 1){
+					Manager::Get()->ResetController(g_homeId);
+					isOk = true;
+				}else if(choice == 2){
+					Manager::Get()->SoftReset(g_homeId);
+					isOk = true;
+				}else {
+					cout << "Please enter 1 or 2\n";
+				}
+			}
+			menuRun = 0;
 			break;
 		case 6:
 			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
@@ -532,14 +556,12 @@ void menu() {
 				{
 					for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
 					{
-						if (ValueID::ValueType_List == (*valueIt).GetType())
+						if ((ValueID::ValueType_List == (*valueIt).GetType() || ValueID::ValueType_Button == (*valueIt).GetType()) && !Manager::Get()->IsValueReadOnly(*valueIt))
 						{
 							counterValue++;
 							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
-						}
-						
-						for(sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
-							if (Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos)
+						}else for(sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
+							if (Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*valueIt))
 							{
 								counterValue++;
 								cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
@@ -556,7 +578,16 @@ void menu() {
 			counterValue = 0;
 			for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
 			{
-				if (ValueID::ValueType_List == (*valueIt).GetType())
+				if (ValueID::ValueType_Button == (*valueIt).GetType() && !Manager::Get()->IsValueReadOnly(*valueIt))
+				{
+					counterValue++;
+					if (choice == counterValue)
+					{
+						setButton((*valueIt));
+					}
+					
+				}
+				if (ValueID::ValueType_List == (*valueIt).GetType() && !Manager::Get()->IsValueReadOnly(*valueIt))
 				{
 					counterValue++;
 					if (choice == counterValue)
@@ -565,32 +596,38 @@ void menu() {
 					}
 					
 				}else for (sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
-					if(Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos){
+					if(Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*valueIt)){
 						counterValue++;
 						if (choice == counterValue)
 						{
 							string valLabel = Manager::Get()->GetValueLabel(*valueIt);
 							cout << "You chose " << valLabel << endl;
 							Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-							// cout << "Current value: " << *ptr_container << endl;
+							cout << "Current value: " << *ptr_container << endl;
 							// cout << "Set to what ? ";
 							//cin >> response;
 
 							//Checking value type to choose the right method
 							if(valLabel.find("Switch") != string::npos){
-								cout << "True(1) or False(0) ?" << endl;
-								cin >> response;
-								choice = stoi(response);
-								SetSwitch((*valueIt), choice);
-							}else if(valLabel.find("Color") != string::npos)
+								setSwitch((*valueIt));
+							}else if(valLabel.find("Color") != string::npos && (*valueIt).GetType() == ValueID::ValueType_String)
 							{
-								SetColor(*valueIt);
-							} else if(valLabel.find("Level") != string::npos)
+								setColor(*valueIt);
+							} else if(valLabel.find("Level") != string::npos && (*valueIt).GetType() == ValueID::ValueType_Byte)
 							{
 								cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
-								cin >> response;
-								choice = stoi(response);
-								switch(choice){
+								while(!isOk){
+									cin >> response;
+									try{
+										listchoice = stoi(response);
+										isOk = true;
+									} catch(exception &err){
+										cout << "Please enter an integer" << endl;
+									}
+								}
+								
+								listchoice = stoi(response);
+								switch(listchoice){
 									case 1:
 										SetIntensity((*valueIt), IntensityScale::VERY_HIGH);
 										break;
@@ -612,8 +649,8 @@ void menu() {
 							{
 								cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
 								cin >> response;
-								choice = stoi(response);
-								switch(choice){
+								listchoice = stoi(response);
+								switch(listchoice){
 									case 1:
 										SetIntensity((*valueIt), IntensityScale::VERY_HIGH);
 										break;
@@ -629,11 +666,17 @@ void menu() {
 									case 5:
 										SetIntensity((*valueIt), IntensityScale::VERY_LOW);
 										break;
-								}
-								
+									default:
+										break;
+								}	
 							}else if(valLabel.find("Duration") != string::npos)
 							{
-								SetDuration((*valueIt));
+								cout << "test" << endl;
+								setDuration((*valueIt));
+							}else if((*valueIt).GetType() == ValueID::ValueType_Int){
+								setInt(*valueIt);
+							}else if((*valueIt).GetType() == ValueID::ValueType_Bool){
+								setBool(*valueIt);
 							}
 							//Manager::Get()->SetValue((*valueIt), response);
 							break;
