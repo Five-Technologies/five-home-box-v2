@@ -13,40 +13,65 @@
 #include <cstdint>
 #include <filesystem>
 #include <cmath>
+#include <bitset>
 
 using namespace OpenZWave;
 using namespace Five;
 using namespace std;
-using namespace Internal::CC;
 
-static uint32 g_homeId{ 0 };
-static list<NodeInfo*> g_nodes = {};
 static pthread_mutex_t g_criticalSection;
 static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
-static bool g_menuLocked{ true };
-static auto start = chrono::high_resolution_clock::now();
-static time_t timet_start = chrono::high_resolution_clock::to_time_t(start);
-static time_t *ptr_start = &timet_start;
-static tm* tm_start = localtime(ptr_start);
+
+bool g_menuLocked{ true };
+auto start{ getCurrentDatetime() };
+tm* tm_start{ convertDateTime(start) };
+
+static uint8 *bitmap[29];
 
 static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume"};
-
-NodeInfo* newNode(Notification* const notification);
 void onNotification(Notification const* notification, void* context);
 void menu();
-bool isNewNode(uint8 nodeID);
-NodeInfo* getNodeInfo(uint8 nodeID, list<NodeInfo*> nodes);
-void refreshNode(ValueID valueID, NodeInfo* oldNodeInfo);
-bool addNode(Notification const notification);
-bool removeNode(Notification const* notification);
 
 int main(int argc, char const *argv[])
 {
+	string response;
 	cout << "Start process..." << endl;
+	cout << ">>──── LOG LEVEL ────<<\n\n"
+		 << "     0. NONE\n"
+		 << "     1. WARNING\n"
+		 << "     2. INFO\n"
+		 << "     3. DEBUG\n\n"
+		 << "Select the log level (0, 1, 2, 3): ";
+	cin >> response;
+
+	switch (stoi(response)) {
+	case 0:
+		LEVEL = logLevel::NONE;
+		break;
+	case 1:
+		LEVEL = logLevel::WARNING;
+		break;
+	case 2:
+		LEVEL = logLevel::INFO;
+		break;
+	case 3:
+		LEVEL = logLevel::DEBUG;
+		break;
+	default:
+		LEVEL = logLevel::NONE;
+		break;
+	}
+
+	cout << "Level selected: " << LEVEL << endl;
+
+	for (int i = 0; i < 29; i++) {
+		uint8 bite{ 0 };
+		uint8 *bitmapPixel = &bite;
+		bitmap[i] = bitmapPixel;
+	}
 
 	pthread_mutexattr_t mutexattr;
-	string response;
 
 	pthread_mutexattr_init ( &mutexattr );
 	pthread_mutexattr_settype( &mutexattr, PTHREAD_MUTEX_RECURSIVE );
@@ -54,20 +79,23 @@ int main(int argc, char const *argv[])
 	pthread_mutexattr_destroy( &mutexattr );
 	pthread_mutex_lock( &initMutex );
 
-	Options::Create("config/", "cpp/examples/cache/", "");
+	Options::Create(CONFIG_PATH, CACHE_PATH, "");
 	Options::Get()->Lock();
-
 	Manager::Create();
 	Manager::Get()->AddWatcher(onNotification, NULL);
+	Manager::Get()->AddDriver(PORT);
 
-	string port = "/dev/ttyACM0";
-	Manager::Get()->AddDriver(port);
+	if (g_menuLocked) {
+		thread t1(menu);
+		t1.detach();
+		g_menuLocked = false;
+	}
 
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
 
 	// 	Driver::DriverData data;
-	// 	Manager::Get()->GetDriverStatistics( g_homeId, &data );
+	// 	Manager::Get()->GetDriverStatistics( Five::homeID, &data );
 	// 	printf("SOF: %d ACK Waiting: %d Read Aborts: %d Bad Checksums: %d\n", data.m_SOFCnt, data.m_ACKWaiting, data.m_readAborts, data.m_badChecksum);
 	// 	printf("Reads: %d Writes: %d CAN: %d NAK: %d ACK: %d Out of Frame: %d\n", data.m_readCnt, data.m_writeCnt, data.m_CANCnt, data.m_NAKCnt, data.m_ACKCnt, data.m_OOFCnt);
 	// 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
@@ -75,192 +103,95 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
-// Create a new NodeInfo.
-NodeInfo* newNode(Notification const* notification) {
-	uint32 homeId = notification->GetHomeId();
-	uint8 nodeId = notification->GetNodeId();
-	ValueID valueID = notification->GetValueID();
-	string name = Manager::Get()->GetNodeProductName(homeId, nodeId);
-	string type = valueID.GetTypeAsString();
-
-	NodeInfo *n = new NodeInfo();
-	n->m_homeId		= homeId;
-	n->m_nodeId		= nodeId;
-	n->m_name     	= name;
-	n->m_nodeType 	= type;
-
-	return n;
-}
-
-// Check if <nodeID> exists in <nodes>.
-bool isNewNode(uint8 nodeID) {
-	list<NodeInfo*>::iterator it;
-	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-		// cout << "it: " << to_string((*it)->m_nodeId) << " nodeID: " << to_string(nodeID) << ", ";
-		if ((*it)->m_nodeId == nodeID) {
-			return false;
-		}
-	}
-	return true;
-}
-
-// Get the NodeInfo thanks to the <nodeID>.
-NodeInfo* getNodeInfo(uint8 nodeID, list<NodeInfo*> nodes) {
-	list<NodeInfo*>::iterator it;
-
-	for (it = nodes.begin(); it != nodes.end(); it++) {
-		if ((*it)->m_nodeId == nodeID) {
-			return *it;
-		}
-	}
-	return NULL;
-}
-
-// Refresh members in the oldNodeInfo thanks to this valueID.
-void refreshNode(ValueID valueID, NodeInfo* oldNodeInfo) {
-	oldNodeInfo->m_homeId = valueID.GetHomeId();
-	oldNodeInfo->m_name = Manager::Get()->GetNodeName(valueID.GetHomeId(), valueID.GetNodeId());
-	oldNodeInfo->m_nodeType = Manager::Get()->GetNodeType(valueID.GetHomeId(), valueID.GetNodeId());
-	oldNodeInfo->m_values.push_back(valueID);
-}
-
-bool addNode(Notification const *notification) {
-	NodeInfo* n{ newNode(notification) };
-	uint8 nodeID{ notification->GetNodeId() };
-
-	if (isNewNode(nodeID)) {
-		g_nodes.push_back(n);
-		return true;
-	}
-	return false;
-}
-
-bool removeNode(Notification const *notification) {
-	uint8 nodeID{ notification->GetNodeId() };
-	list<NodeInfo*>::iterator it;
-
-	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-		if ((*it)->m_nodeId == nodeID) {
-			g_nodes.remove(*it);
-			return true;
-		}
-	}
-	return false;
-}
-
-bool addValue(Notification const* notification) {
-	uint8 nodeID{ notification->GetNodeId() };
-	list<NodeInfo*>::iterator it;
-
-	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-		if ((*it)->m_nodeId == nodeID) {
-			(*it)->m_name = Manager::Get()->GetNodeProductName(notification->GetHomeId(), nodeID);
-			(*it)->m_values.push_back(notification->GetValueID());
-			return true;
-		}
-	}
-	return false;
-}
-
-bool removeValue(ValueID valueID) {
-	uint8 nodeID{ valueID.GetNodeId() };
-	list<NodeInfo*>::iterator it;
-	list<ValueID>* valueIDs;
-	list<ValueID>::iterator it2;
-
-	for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-		if ((*it)->m_nodeId == nodeID) {
-			valueIDs = &((*it)->m_values);
-
-			for (it2 = valueIDs->begin(); it2 != valueIDs->end(); it2++) {
-				if (*it2 == valueID) {
-					valueIDs->remove(valueID);
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-	return false;
-}
-
-bool removeFile(string relativePath) {
-	char arr[relativePath.length()];
-	strcpy(arr, relativePath.c_str());
-	remove(arr);
-	return true;
-}
-
 void onNotification(Notification const* notification, void* context) {
-	list<NodeInfo*>::iterator it;
-	list<ValueID>::iterator it2;
 	ofstream myfile;
-	ValueID v;
+	ValueID valueID{ notification->GetValueID() };
 	string valueLabel;
-	uint8 cc_id;
-	string cc_name;
+	uint8 cc_id{ valueID.GetCommandClassId() };
+	string cc_name{ Manager::Get()->GetCommandClassName(cc_id) };
+	string path = Five::NODE_LOG_PATH + "node_" + to_string(notification->GetNodeId()) + ".log";
 	string container;
 	string *ptr_container = &container;
-
-	v = notification->GetValueID();
-	cc_id = v.GetCommandClassId();
-	cc_name = Manager::Get()->GetCommandClassName(cc_id);
-	
-	bool isNewNode = true;
-
-	string path = "cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log";
-	int n = path.length();
-	char charArray[n + 1];
-	strcpy(charArray, path.c_str());
-
-	chrono::system_clock::time_point tp_now = chrono::system_clock::now();
-	time_t tt_now = chrono::system_clock::to_time_t(tp_now);
-	const time_t* ptr_tt_now = &tt_now;
-	tm* tm_now = localtime(ptr_tt_now);
-	
-	string formatHour = to_string(tm_now->tm_hour) + ":" + to_string(tm_now->tm_min) + ":" + to_string(tm_now->tm_sec);
-	string formatDate = to_string(tm_now->tm_mday) + "/" + to_string(tm_now->tm_mon);
-	chrono::duration<double> elapsed_seconds = tp_now - start;
-	double rounded_elapsed = ceil(elapsed_seconds.count() * 1000) / 1000;
 	string notifType{ "" };
+	string log{ "" };
 
+	Node::NodeData nodeData;
+	Node::NodeData* ptr_nodeData = &nodeData;
+	Driver::DriverData driver_data;
+
+	if (containsType(notification->GetType(), Five::AliveNotification)) {
+		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
+			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
+			if (n->m_isDead) {
+				n->m_isDead = false;
+				cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
+				cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
+				cout << "   - alive: " << aliveNodeSum(nodes) << endl;
+				cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
+			}
+		}
+	}
 
 	pthread_mutex_lock(&g_criticalSection); // lock critical section
+	// uint8 neighborNodeID;
+	// uint8 *ptr_neighborNodeID = &neighborNodeID;
 
-	if (g_homeId == 0) {
-		g_homeId = notification->GetHomeId();
+	// uint8 *ptr2_neighborNodeID = &ptr_array_neighbotNodeID;
+
+	if (Five::homeID == 0) {
+		Five::homeID = notification->GetHomeId();
 	}
 
 	switch (notification->GetType()) {
 		case Notification::Type_ValueAdded:
+			log += "[VALUE_ADDED]	                  node " + to_string(notification->GetNodeId()) + ", value " + to_string(valueID.GetId()) + '\n';
+			
 			notifType = "VALUE ADDED";
-			if (addValue(notification)) {
-				cout << "[VALUE_ADDED]	                  node " << to_string(notification->GetNodeId()) << ", value " << v.GetId() << endl;
-			}
+			addValue(valueID, getNode(notification->GetNodeId(), Five::nodes));
 			break;
 		case Notification::Type_ValueRemoved:
-			// notifType = "VALUE REMOVED";
-			if (removeValue(v)) {
-				cout << "[VALUE_REMOVED]                   node " << to_string(notification->GetNodeId()) << " value " << v.GetId() << endl;
-			}
+			log += "[VALUE_REMOVED]                   node "
+			    + to_string(notification->GetNodeId()) + " value "
+				+ to_string(valueID.GetId()) + '\n';
+			
+			notifType = "VALUE REMOVED";
+			removeValue(valueID);
 			break;
 		case Notification::Type_ValueChanged:
-			notifType = "VALUE CHANGED";
+			Manager::Get()->GetValueAsString(valueID, ptr_container);
+			Manager::Get()->GetNodeStatistics(valueID.GetHomeId(), valueID.GetNodeId(), ptr_nodeData);
 			
-			v = notification->GetValueID();
+			log += "[VALUE_CHANGED]                   node "
+			    + to_string(valueID.GetNodeId()) + ", " 
+				+ Manager::Get()->GetValueLabel(valueID) + ": " 
+				+ *ptr_container + '\n';
+			
+			notifType = "VALUE CHANGED";
+			Manager::Get()->SyncronizeNodeNeighbors(valueID.GetHomeId(), valueID.GetNodeId());
+			// cout << "pointer: " << (*ptr_nodeData).m_routeScheme << endl;
+			// cout << "route: " << Manager::Get()->GetNodeRouteScheme(ptr_nodeData) << endl;
+			Manager::Get()->RequestNodeNeighborUpdate(valueID.GetHomeId(), valueID.GetNodeId());
+
+			valueID = notification->GetValueID();
 			// cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRefreshed:
+			log += "[VALUE_REFRESHED]                 node " + to_string(valueID.GetNodeId()) + ", "
+			     + Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + ", "
+				 + ", neigbors: " + to_string(Manager::Get()->GetNodeNeighbors(valueID.GetHomeId(), 1, bitmap)) + '\n';
+			
 			notifType = "VALUE REFRESHED";
+			Manager::Get()->GetValueAsString(valueID, ptr_container);
 
-			// for (it = g_nodes.begin(); it != g_nodes.end(); it++) {
-			// 	if ((*it)->m_nodeId == notification->GetNodeId()) {
-			// 		for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
-			// 			cout << it2->GetId();
-			// 		}
-			// 		cout << endl;
-			// 	}
+			// for (i = 0; i < 29; i++) {
+			// 	// for (j = 0; j < 8; j++) {
+			// 	// 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
+			// 	// }
+			// 	// cout << '\n';
+			// 	// cout << bitset<8>((*bitmap)[i]) << '\n';
+			// 	cout << to_string((*bitmap)[i]) << endl;
 			// }
+			
 			break;
 		case Notification::Type_Group:
 			notifType = "GROUP";
@@ -269,24 +200,24 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "NODE NEW";
 			break;
 		case Notification::Type_NodeAdded:
-			// notifType = "NODE ADDED";
-			if (addNode(notification)) {
-				cout << "[NODE_ADDED]                      node " << to_string(notification->GetNodeId()) << endl;
-			}
+			log += "[NODE_ADDED]                      node " + to_string(notification->GetNodeId()) + '\n';
+			
+			notifType = "NODE ADDED";
+			pushNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeRemoved:
-			// notifType = "NODE REMOVED";
-			if (removeNode(notification)) {
-				cout << "[NODE_REMOVED]                    node " << to_string(notification->GetNodeId()) << endl;
-				removeFile("cpp/examples/cache/nodes/node_" + to_string(notification->GetNodeId()) + ".log");
-			}
+			log += "[NODE_REMOVED]                    node " + to_string(notification->GetNodeId()) + '\n';
+			notifType = "NODE REMOVED";
+			
+			removeFile(path);
+			removeNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeProtocolInfo:
 			notifType = "NODE PROTOCOL INFO";
 			break;
 		case Notification::Type_NodeNaming:
+			log += "[NODE_NAMING]                     node " + to_string(valueID.GetNodeId()) + '\n';
 			notifType = "NODE NAMING";
-			cout << "[NODE_NAMING]                     node " << to_string(v.GetNodeId()) << endl;
 			break;
 		case Notification::Type_NodeEvent:
 			notifType = "NODE EVENT";
@@ -313,8 +244,9 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "BUTTON OFF";
 			break;
 		case Notification::Type_DriverReady:
+			log += "[DRIVER_READY]                    driver READY\n" + getDriverData(notification->GetHomeId()) + '\n';
 			notifType = "DRIVER READY";
-			cout << "[DRIVER_READY]                    driver READY" << endl;
+			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
 			break;
 		case Notification::Type_DriverFailed:
 			notifType = "DRIVER FAILED";
@@ -323,34 +255,34 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "DRIVER RESET";
 			break;
 		case Notification::Type_EssentialNodeQueriesComplete:
+			log += "[ESSENTIAL_NODE_QUERIES_COMPLETE] node " + to_string(notification->GetNodeId()) + ", queries COMPLETE" + '\n';
 			notifType = "ESSENTIAL NODE QUERIES COMPLETE";
-			cout << "[ESSENTIAL_NODE_QUERIES_COMPLETE] node " << to_string(notification->GetNodeId()) << ", queries COMPLETE" << endl;
 			// cout << "valueID: " << v.GetAsString() << endl;
 			break;
 		case Notification::Type_NodeQueriesComplete:
+			log += "[NODE_QUERIES_COMPLETE]           node " + to_string(valueID.GetNodeId()) + '\n';
 			notifType = "NODE QUERIES COMPLETE";
-			cout << "[NODE_QUERIES_COMPLETE]           node " << to_string(v.GetNodeId()) << endl;
 			break;
 		case Notification::Type_AwakeNodesQueried:
 			notifType = "AWAKE NODES QUERIED";
 			break;
 		case Notification::Type_AllNodesQueriedSomeDead:
+			log += "\n🚨 [ALL_NODES_QUERIED_SOME_DEAD]  node " + to_string(valueID.GetNodeId()) + '\n'
+			     + "   - total: " + to_string(aliveNodeSum(nodes) + deadNodeSum(nodes)) + '\n'
+			     + "   - alive: " + to_string(aliveNodeSum(nodes)) + '\n'
+			     + "   - dead : " + to_string(deadNodeSum(nodes)) + '\n'
+			     + "   - start: " + getTime(convertDateTime(start))
+			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';			
 			notifType = "ALL NODES QUERIED SOME DEAD";
 			break;
 		case Notification::Type_AllNodesQueried:
+			log += "\n✅ [ALL_NODES_QUERIED]            node " + to_string(valueID.GetNodeId()) + '\n'
+			     + "   - total: " + to_string(aliveNodeSum(nodes) + deadNodeSum(nodes)) + '\n'
+			     + "   - alive: " + to_string(aliveNodeSum(nodes)) + '\n'
+			     + "   - dead : " + to_string(deadNodeSum(nodes)) + '\n'
+			     + "   - start: " + getTime(convertDateTime(start))
+			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';
 			notifType = "ALL NODES QUERIED";
-			cout << "\n✅ [ALL_NODES_QUERIED]               node " << to_string(v.GetNodeId()) << endl;
-			cout << "   - total: " << g_nodes.size() << endl;
-			cout << "   - alive: " << endl;
-			cout << "   - dead : " << endl;
-			cout << "   - start: " << asctime(tm_start);
-			cout << "   - elapse: " << rounded_elapsed << "s\n" << endl;
-			
-			if (g_menuLocked) {
-				thread t1(menu);
-				t1.detach();
-				g_menuLocked = false;
-			}
 			break;
 		case Notification::Type_Notification:
 			notifType = "NOTIFICATION";
@@ -360,7 +292,6 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_ControllerCommand:
 			notifType = "CONTROLLER COMMAND";
-
 			// cout << "Create command class..." << endl;
 			// cout << notification->Type_ControllerCommand << notification->GetCommand();
 			break;
@@ -372,9 +303,8 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_ManufacturerSpecificDBReady:
 			// The valueID is empty, you can't use it here.
+			log += "[MANUFACTURER_SPECIFIC_DB_READY]  manufacturer database READY" + '\n';
 			notifType = "MANUFACTURER SPECIFIC DB READY";
-			cout << "[MANUFACTURER_SPECIFIC_DB_READY]  manufacturer database READY" << endl;
-			
 			break;
 		default:
 			break;
@@ -384,14 +314,24 @@ void onNotification(Notification const* notification, void* context) {
 		notifType = to_string(notification->GetType());
 	}
 
+	switch (Five::LEVEL)
+	{
+	case Five::logLevel::DEBUG:
+		cout << log;
+		break;
+	default:
+		break;
+	}
+
 	// cout << ">> " << notifType << endl;
+	// cout << log;
 	
 	if (notification->GetType() != Notification::Type_NodeRemoved) {
 		myfile.open(path, ios::app);
 
-		myfile << "[" << formatDate << ", "<< formatHour << "] " 
+		myfile << "[" << getDate(convertDateTime(getCurrentDatetime())) << ", "<< getTime(convertDateTime(getCurrentDatetime())) << "] " 
 			<< notifType << ", " << cc_name << " --> " 
-			<< to_string(v.GetIndex()) << "(" << valueLabel << ")\n";
+			<< to_string(valueID.GetIndex()) << "(" << valueLabel << ")\n";
 
 		myfile.close();
 	}
@@ -416,28 +356,26 @@ void menu() {
 		string* ptr_container = &container;
 		string fileName{ "" };
 		
-		//int status;
-
 		while (x --> 0) {
-			std::cout << x << endl;
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 
-		if (std::find(g_setTypes.begin(), g_setTypes.end(), "Duration") != g_setTypes.end()){
-			cout << "Works" << endl;
-		}
+		// if (std::find(g_setTypes.begin(), g_setTypes.end(), "Duration") != g_setTypes.end()){
+		// 	cout << "Works" << endl;
+		// }
 
-		cout << "----- MENU -----" << endl << endl;
-		cout << "1. Add node" << endl;
-		cout << "2. Remove node" << endl;
-		cout << "3. Get value" << endl;
-		cout << "4. Set value" << endl;
-		cout << "5. Reset Key" << endl;
-		cout << "6. Wake Up" << endl;
-		cout << "7. Heal" << endl;
-		cout << "8. NewSetValue" << endl;
+		cout << "\n>>──────| MENU |──────<<\n" << endl;
+		cout << "     1. Add node" << endl;
+		cout << "     2. Remove node" << endl;
+		cout << "     3. Get value" << endl;
+		cout << "     4. Set value (old)" << endl;
+		cout << "     5. Reset Key" << endl;
+		cout << "     6. Wake Up" << endl;
+		cout << "     7. Heal" << endl;
+		cout << "     8. Set value (new)" << endl;
+		cout << "     9. Get network" << endl;
 
-		cout << "Please choose: ";
+		cout << "\nSelect a number: ";
 		cin >> response;
 
 		try {
@@ -449,13 +387,13 @@ void menu() {
 
 		switch (choice) {
 		case 1:
-			Manager::Get()->AddNode(g_homeId, false);
+			Manager::Get()->AddNode(Five::homeID, false);
 			break;
 		case 2:
-			Manager::Get()->RemoveNode(g_homeId);
+			Manager::Get()->RemoveNode(Five::homeID);
 			break;
 		case 3:
-			for(nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++) {
+			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++) {
 				counterNode++;
 				cout << counterNode << ". " << (*nodeIt)->m_name << endl;
 			}
@@ -466,7 +404,7 @@ void menu() {
 			choice = stoi(response);
 			counterNode = 0;
 			
-			for(nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
+			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
 				counterNode++;
 				if (counterNode == choice) {
 					for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++) {
@@ -492,7 +430,7 @@ void menu() {
 			break;
 		case 4:
 			cout << "Choose what node you want to set a value from: " << endl;
-			for(nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
 			{
 				counterNode++;
 				cout << counterNode << ". " << (*nodeIt)->m_name << endl;
@@ -504,7 +442,7 @@ void menu() {
 			choice = stoi(response);
 			counterNode = 0;
 			cout << "Choose the value to set: " << endl;
-			for(nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
 			{
 				counterNode++;
 				if (counterNode == choice)
@@ -574,10 +512,10 @@ void menu() {
 				cin >> response;
 				choice = stoi(response);
 				if(choice == 1){
-					Manager::Get()->ResetController(g_homeId);
+					Manager::Get()->ResetController(Five::homeID);
 					isOk = true;
 				}else if(choice == 2){
-					Manager::Get()->SoftReset(g_homeId);
+					Manager::Get()->SoftReset(Five::homeID);
 					isOk = true;
 				}else {
 					cout << "Please enter 1 or 2\n";
@@ -586,14 +524,14 @@ void menu() {
 			menuRun = 0;
 			break;
 		case 6:
-			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
+			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
 				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
 			}
 			cout << "Which node do you want to heal ?";
 			cin >> response;
 			choice = stoi(response);
 
-			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
+			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
 				if ((*nodeIt)->m_nodeId == choice){
 					Manager::Get()->HealNetworkNode((*nodeIt)->m_homeId, (*nodeIt)->m_nodeId, true);
 				}
@@ -602,7 +540,7 @@ void menu() {
 		case 7:
 			break;
 		case 8:
-			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
 			{
 				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
 			}
@@ -612,7 +550,7 @@ void menu() {
 			cin >> response;
 			choice = stoi(response);
 			//counterNode = 0;
-			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++)
+			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
 			{
 				if ((*nodeIt)->m_nodeId == choice)
 				{
@@ -654,7 +592,7 @@ void menu() {
 					counterValue++;
 					if (choice == counterValue)
 					{
-						setList((*valueIt));
+						Five::setList((*valueIt));
 					}
 					
 				}else for (sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
@@ -671,7 +609,7 @@ void menu() {
 
 							//Checking value type to choose the right method
 							if(valLabel.find("Switch") != string::npos){
-								setSwitch((*valueIt));
+								setSwitch((*valueIt), true);
 							}else if(valLabel.find("Color") != string::npos && (*valueIt).GetType() == ValueID::ValueType_String)
 							{
 								setColor(*valueIt);
@@ -805,7 +743,7 @@ void menu() {
 		if (fileName.size() > 0) {
 			char arr[fileName.length()];
 			strcpy(arr, fileName.c_str());
-			for (int i = 0; i < fileName.length(); i++) {
+			for (int i = 0; i < int(fileName.length()); i++) {
 				cout << arr[i];
 			}
 			cout << endl;
@@ -820,10 +758,10 @@ void menu() {
 			// }
 		}
 
-		// Manager::Get()->AddNode(g_homeId, false);
-		// Manager::Get()->RemoveNode(g_homeId);
+		// Manager::Get()->AddNode(Five::homeID, false);
+		// Manager::Get()->RemoveNode(Five::homeID);
 		// cout << "Node removed" << endl;
-		// Manager::Get()->TestNetwork(g_homeId, 5);
-		// cout << "Name: " << Manager::Get()->GetNodeProductName(g_homeId, 2).c_str() << endl;
+		// Manager::Get()->TestNetwork(Five::homeID, 5);
+		// cout << "Name: " << Manager::Get()->GetNodeProductName(Five::homeID, 2).c_str() << endl;
 	}
 }

@@ -2,29 +2,25 @@
 #include "Notification.h"
 #include "Manager.h"
 #include "command_classes/CommandClass.h"
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <math.h>
 
-using namespace Five;
 using namespace OpenZWave;
-using namespace std;
+using namespace Five;
 
-NodeInfo getNodeInfo(Notification const* notification, list<NodeInfo*> nodes) {
-    uint32 homeId{ notification->GetHomeId() };
-    uint8 nodeId{ notification->GetNodeId() };
-    string nodeType{ Manager::Get()->GetNodeType(homeId, nodeId) };
-    string nodeName{ Manager::Get()->GetNodeName(homeId, nodeId) };
-    
-    NodeInfo node = {
-        homeId,
-        nodeId,
-        { notification->GetValueID() },
-        nodeName,
-        nodeType
-    };
-
-    return node;
+NodeInfo* Five::getNode(uint8 nodeID, list<NodeInfo*> *nodes) {
+    list<NodeInfo*>::iterator it;
+    for (it = nodes->begin(); it != nodes->end(); it++) {
+        if ((*it)->m_nodeId == nodeID) {
+            return (*it);
+        }
+    }
+    return NULL;
 }
 
-NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes)
+NodeInfo Five::getNodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> *nodes)
 {
     list<NodeInfo*>::iterator it;
     NodeInfo node;
@@ -33,7 +29,7 @@ NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes)
     node.m_name = Manager::Get()->GetNodeProductName(node.m_homeId, nodeId);
     node.m_nodeId = nodeId;
     node.m_nodeType = Manager::Get()->GetNodeType(node.m_homeId, nodeId);
-    for(it = g_nodes.begin(); it != g_nodes.end(); ++it)
+    for(it = nodes->begin(); it != nodes->end(); ++it)
     {
         if((*it)->m_nodeId == nodeId)
         {
@@ -43,20 +39,20 @@ NodeInfo nodeConfig(uint32 homeId, uint8 nodeId, list<NodeInfo*> g_nodes)
     return node;
     
 }
-string NotificationService::valueAdded(Notification const* notification, list<NodeInfo*> nodes) {
-    return "[VALUE ADDED] " + notification->GetValueID().GetAsString() + '\n';
+bool Five::valueAdded(Notification const* notification, list<NodeInfo*> *nodes) {
+    return true;
 }
 
-string NotificationService::valueRefreshed(Notification const* notification, list<NodeInfo*> nodes) {
-    return "value refreshed";
+bool Five::valueRefreshed(Notification const* notification, list<NodeInfo*> *nodes) {
+    return true;
 }
 
-string NotificationService::valueRemoved(Notification const* notification, list<NodeInfo*> nodes) {
-    return "value removed";
+bool Five::valueRemoved(Notification const* notification, list<NodeInfo*> *nodes) {
+    return true;
 }
 
 /// A value has changed on the Z-Wave network and this is a different value.
-string NotificationService::valueChanged(Notification const* notification, list<NodeInfo*> nodes) {
+bool Five::valueChanged(Notification const* notification, list<NodeInfo*> *nodes) {
     bool state;
     bool* ptr = &state;
     
@@ -64,7 +60,7 @@ string NotificationService::valueChanged(Notification const* notification, list<
     string output{ "[VALUE CHANGED]\n" };
     list<NodeInfo*>::iterator it;
 
-    for (it = nodes.begin(); it != nodes.end(); it++) {
+    for (it = nodes->begin(); it != nodes->end(); it++) {
         if ((*it)->m_nodeId == v.GetNodeId()) {
             (*it)->m_values.push_back(v);
         }
@@ -88,13 +84,12 @@ string NotificationService::valueChanged(Notification const* notification, list<
         output += "value_as_bool: " + *ptr + '\n';
     }
 
-    return output;
+    // return output;
+    return true;
 }
 
-bool Five::setSwitch(ValueID valueId)
-{   
+bool Five::setSwitch(ValueID valueId, bool state) {   
     string answer;
-    bool state(0);
     cout << "true(1) or false(0) ?" << endl;
 	cin >> answer;
 
@@ -162,7 +157,7 @@ bool Five::setVolume(ValueID valueId, IntensityScale intensity){
     return true;
 }
 
-bool Five::setDuration(ValueID valueId){
+bool Five::setDuration(ValueID valueId) {
     string response;
     cout << "Please enter a duration in seconds:" << endl;
     cin >> response;
@@ -205,3 +200,204 @@ bool Five::setButton(ValueID valueId){
     return true;
 }
 
+// Create a new NodeInfo.
+NodeInfo* Five::createNode(Notification const* notification) {
+	uint32 homeId = notification->GetHomeId();
+	uint8 nodeId = notification->GetNodeId();
+	ValueID valueID = notification->GetValueID();
+	string name = Manager::Get()->GetNodeProductName(homeId, nodeId);
+	string type = valueID.GetTypeAsString();
+
+	NodeInfo *n = new NodeInfo();
+	n->m_homeId		= homeId;
+	n->m_nodeId		= nodeId;
+	n->m_name     	= name;
+	n->m_nodeType 	= type;
+
+	return n;
+}
+
+// Check if <nodeID> exists in <nodes>.
+bool Five::isNodeNew(uint8 nodeID, list<NodeInfo*> *nodes) {
+	list<NodeInfo*>::iterator it;
+	for (it = nodes->begin(); it != nodes->end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			return false;
+		}
+	}
+	return true;
+}
+
+int Five::deadNodeSum(list<NodeInfo*> *nodes) {
+	int counter{ 0 };
+	list<NodeInfo*>::iterator it;
+	for (it = nodes->begin(); it != nodes->end(); it++) {
+		if ((*it)->m_isDead && (*it)->m_nodeId != 1) {
+			counter++;
+		}
+	}
+	return counter;
+}
+
+int Five::aliveNodeSum(list<NodeInfo*> *nodes) {
+	return (nodes->size() - 1) - deadNodeSum(nodes);
+}
+
+bool Five::containsType(Notification::NotificationType needle, vector<Notification::NotificationType> haystack) {
+    for (int i = 0; i < int(haystack.capacity()); i++) {
+        if (needle == haystack[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Five::containsNodeID(uint8 needle, list<NodeInfo*> haystack) {
+    list<NodeInfo*>::iterator it;
+    for (it = haystack.begin(); it != haystack.end(); it++) {
+        if ((*it)->m_nodeId == needle) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Five::isNodeAlive(Notification notif, list<NodeInfo*> *nodes, vector<Notification::NotificationType> aliveNotifications) {
+    // uint8 nodeID{ valueID.GetNodeId() };
+    // bool containsType{ Five::ContainsType(notif.GetType(), aliveNotifications) };
+    return true;
+}
+
+// Refresh members in the oldNodeInfo thanks to this valueID.
+void Five::refreshNode(ValueID valueID, NodeInfo* oldNodeInfo) {
+	oldNodeInfo->m_homeId = valueID.GetHomeId();
+	oldNodeInfo->m_name = Manager::Get()->GetNodeName(valueID.GetHomeId(), valueID.GetNodeId());
+	oldNodeInfo->m_nodeType = Manager::Get()->GetNodeType(valueID.GetHomeId(), valueID.GetNodeId());
+	oldNodeInfo->m_values.push_back(valueID);
+}
+
+void Five::pushNode(Notification const *notification, list<NodeInfo*> *nodes) {
+	NodeInfo* n{ createNode(notification) };
+	uint8 nodeID{ notification->GetNodeId() };
+
+	if (isNodeNew(nodeID, nodes)) {
+		nodes->push_back(n);
+	}
+}
+
+void Five::removeNode(Notification const *notification, list<NodeInfo*> *nodes) {
+    uint8 nodeID{ notification->GetNodeId() };
+	list<NodeInfo*>::iterator it;
+    NodeInfo* n;
+
+	for (it = nodes->begin(); it != nodes->end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+            n = (*it);
+			nodes->remove(n);
+            return;
+		}
+	}
+}
+
+bool Five::addValue(ValueID valueID, NodeInfo *node) {
+	// uint8 nodeID{ valueID.GetNodeId() };
+	bool isNew{ true };
+    
+    list<ValueID>::iterator it;
+    for (it = node->m_values.begin(); it != node->m_values.end(); it++) {
+        if ((*it).GetId() == valueID.GetId()) {
+            isNew = false;
+        }
+    }
+
+    if (isNew) {
+        // cout << node->m_nodeId << endl;
+        node->m_values.push_back(valueID);
+    }
+
+    return isNew;
+
+
+	// for (it = nodes->begin(); it != nodes->end(); it++) {
+	// 	if ((*it)->m_nodeId == nodeID) {
+	// 		(*it)->m_name = Manager::Get()->GetNodeProductName(valueID.GetHomeId(), nodeID);
+	// 		(*it)->m_values.push_back(valueID);
+	// 		return true;
+	// 	}
+	// }
+	// return false;
+}
+
+bool Five::removeValue(ValueID valueID) {
+	uint8 nodeID{ valueID.GetNodeId() };
+	list<NodeInfo*>::iterator it;
+	list<ValueID>* valueIDs;
+	list<ValueID>::iterator it2;
+
+	for (it = nodes->begin(); it != nodes->end(); it++) {
+		if ((*it)->m_nodeId == nodeID) {
+			valueIDs = &((*it)->m_values);
+
+			for (it2 = valueIDs->begin(); it2 != valueIDs->end(); it2++) {
+				if (*it2 == valueID) {
+					valueIDs->remove(valueID);
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+	return false;
+}
+
+// If the path is right, remove the target file.
+bool Five::removeFile(string path) {
+	char arr[path.length()];
+    strcpy(arr, path.c_str());
+    remove(arr);
+	return true;
+}
+
+string Five::getDriverData(uint32 homeID) {
+	Driver::DriverData driverData;
+	string output = "";
+
+	Manager::Get()->GetDriverStatistics(homeID, &driverData);
+	output += "   - ACK counter: ";
+	output += to_string(driverData.m_ACKCnt);
+	output += "   - ACK waiting: ";
+	output += to_string(driverData.m_ACKWaiting);
+	return output;
+}
+
+chrono::high_resolution_clock::time_point Five::getCurrentDatetime() {
+    return std::chrono::high_resolution_clock::now();
+}
+
+tm* Five::convertDateTime(chrono::high_resolution_clock::time_point datetime) {
+    time_t convertTime{ std::chrono::high_resolution_clock::to_time_t(datetime) };
+    return localtime(&convertTime);
+}
+
+string Five::getTime(tm* datetime) {
+    return to_string(datetime->tm_hour) + ":" + to_string(datetime->tm_min) + ":" + to_string(datetime->tm_sec);
+}
+
+string Five::getDate(tm* datetime) {
+    return to_string(datetime->tm_mday) + "/" + to_string(datetime->tm_mon);
+}
+
+double Five::difference(chrono::high_resolution_clock::time_point datetime01, chrono::high_resolution_clock::time_point datetime02) {
+    chrono::duration<double> elapsed_seconds = datetime01 - datetime02;
+	double rounded_elapsed = ceil(elapsed_seconds.count() * 1000) / 1000;
+    return rounded_elapsed;
+}
+
+// Convert a string into an array of char.
+// The output parameter must have the same length as the string.
+// <output> will be filled.
+void Five::stoc(string chain, char* output) {
+    for (int i = 0; i < int(chain.length()); i++) {
+        output[i] = chain[i];
+    }
+}
