@@ -24,8 +24,8 @@ static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 
 bool g_menuLocked{ true };
-auto start{ GetCurrentDatetime() };
-tm* tm_start{ ConvertDateTime(start) };
+auto start{ getCurrentDatetime() };
+tm* tm_start{ convertDateTime(start) };
 
 static uint8 *bitmap[29];
 
@@ -119,15 +119,15 @@ void onNotification(Notification const* notification, void* context) {
 	Node::NodeData* ptr_nodeData = &nodeData;
 	Driver::DriverData driver_data;
 
-	if (ContainsType(notification->GetType(), Five::AliveNotification)) {
-		if (ContainsNodeID(notification->GetNodeId(), (*Five::nodes))) {
-			NodeInfo* n = GetNode(notification->GetNodeId(), Five::nodes);
+	if (containsType(notification->GetType(), Five::AliveNotification)) {
+		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
+			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
 			if (n->m_isDead) {
 				n->m_isDead = false;
 				cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
-				cout << "   - total: " << AliveNodeSum(nodes) + DeadNodeSum(nodes) << endl;
-				cout << "   - alive: " << AliveNodeSum(nodes) << endl;
-				cout << "   - dead : " << DeadNodeSum(nodes) << "\n\n" << endl;
+				cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
+				cout << "   - alive: " << aliveNodeSum(nodes) << endl;
+				cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
 			}
 		}
 	}
@@ -147,7 +147,7 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[VALUE_ADDED]	                  node " + to_string(notification->GetNodeId()) + ", value " + to_string(valueID.GetId()) + '\n';
 			
 			notifType = "VALUE ADDED";
-			AddValue(valueID, GetNode(notification->GetNodeId(), Five::nodes));
+			addValue(valueID, getNode(notification->GetNodeId(), Five::nodes));
 			break;
 		case Notification::Type_ValueRemoved:
 			log += "[VALUE_REMOVED]                   node "
@@ -155,7 +155,7 @@ void onNotification(Notification const* notification, void* context) {
 				+ to_string(valueID.GetId()) + '\n';
 			
 			notifType = "VALUE REMOVED";
-			RemoveValue(valueID);
+			removeValue(valueID);
 			break;
 		case Notification::Type_ValueChanged:
 			Manager::Get()->GetValueAsString(valueID, ptr_container);
@@ -203,14 +203,14 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[NODE_ADDED]                      node " + to_string(notification->GetNodeId()) + '\n';
 			
 			notifType = "NODE ADDED";
-			PushNode(notification, Five::nodes);
+			pushNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeRemoved:
 			log += "[NODE_REMOVED]                    node " + to_string(notification->GetNodeId()) + '\n';
 			notifType = "NODE REMOVED";
 			
-			RemoveFile(path);
-			RemoveNode(notification, Five::nodes);
+			removeFile(path);
+			removeNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeProtocolInfo:
 			notifType = "NODE PROTOCOL INFO";
@@ -244,7 +244,7 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "BUTTON OFF";
 			break;
 		case Notification::Type_DriverReady:
-			log += "[DRIVER_READY]                    driver READY\n" + GetDriverData(notification->GetHomeId()) + '\n';
+			log += "[DRIVER_READY]                    driver READY\n" + getDriverData(notification->GetHomeId()) + '\n';
 			notifType = "DRIVER READY";
 			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
 			break;
@@ -268,20 +268,20 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_AllNodesQueriedSomeDead:
 			log += "\n🚨 [ALL_NODES_QUERIED_SOME_DEAD]  node " + to_string(valueID.GetNodeId()) + '\n'
-			     + "   - total: " + to_string(AliveNodeSum(nodes) + DeadNodeSum(nodes)) + '\n'
-			     + "   - alive: " + to_string(AliveNodeSum(nodes)) + '\n'
-			     + "   - dead : " + to_string(DeadNodeSum(nodes)) + '\n'
-			     + "   - start: " + GetTime(ConvertDateTime(start))
-			     + "   - elapse: " + to_string(Difference(GetCurrentDatetime(), start)) + "s\n" + '\n';			
+			     + "   - total: " + to_string(aliveNodeSum(nodes) + deadNodeSum(nodes)) + '\n'
+			     + "   - alive: " + to_string(aliveNodeSum(nodes)) + '\n'
+			     + "   - dead : " + to_string(deadNodeSum(nodes)) + '\n'
+			     + "   - start: " + getTime(convertDateTime(start))
+			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';			
 			notifType = "ALL NODES QUERIED SOME DEAD";
 			break;
 		case Notification::Type_AllNodesQueried:
 			log += "\n✅ [ALL_NODES_QUERIED]            node " + to_string(valueID.GetNodeId()) + '\n'
-			     + "   - total: " + to_string(AliveNodeSum(nodes) + DeadNodeSum(nodes)) + '\n'
-			     + "   - alive: " + to_string(AliveNodeSum(nodes)) + '\n'
-			     + "   - dead : " + to_string(DeadNodeSum(nodes)) + '\n'
-			     + "   - start: " + GetTime(ConvertDateTime(start))
-			     + "   - elapse: " + to_string(Difference(GetCurrentDatetime(), start)) + "s\n" + '\n';
+			     + "   - total: " + to_string(aliveNodeSum(nodes) + deadNodeSum(nodes)) + '\n'
+			     + "   - alive: " + to_string(aliveNodeSum(nodes)) + '\n'
+			     + "   - dead : " + to_string(deadNodeSum(nodes)) + '\n'
+			     + "   - start: " + getTime(convertDateTime(start))
+			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';
 			notifType = "ALL NODES QUERIED";
 			break;
 		case Notification::Type_Notification:
@@ -329,7 +329,7 @@ void onNotification(Notification const* notification, void* context) {
 	if (notification->GetType() != Notification::Type_NodeRemoved) {
 		myfile.open(path, ios::app);
 
-		myfile << "[" << GetDate(ConvertDateTime(GetCurrentDatetime())) << ", "<< GetTime(ConvertDateTime(GetCurrentDatetime())) << "] " 
+		myfile << "[" << getDate(convertDateTime(getCurrentDatetime())) << ", "<< getTime(convertDateTime(getCurrentDatetime())) << "] " 
 			<< notifType << ", " << cc_name << " --> " 
 			<< to_string(valueID.GetIndex()) << "(" << valueLabel << ")\n";
 
@@ -512,10 +512,10 @@ void menu() {
 				cin >> response;
 				choice = stoi(response);
 				if(choice == 1){
-					Manager::Get()->ResetController(g_homeId);
+					Manager::Get()->ResetController(Five::homeID);
 					isOk = true;
 				}else if(choice == 2){
-					Manager::Get()->SoftReset(g_homeId);
+					Manager::Get()->SoftReset(Five::homeID);
 					isOk = true;
 				}else {
 					cout << "Please enter 1 or 2\n";
@@ -592,7 +592,7 @@ void menu() {
 					counterValue++;
 					if (choice == counterValue)
 					{
-						Five::SetList((*valueIt));
+						Five::setList((*valueIt));
 					}
 					
 				}else for (sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
@@ -609,7 +609,7 @@ void menu() {
 
 							//Checking value type to choose the right method
 							if(valLabel.find("Switch") != string::npos){
-								setSwitch((*valueIt));
+								setSwitch((*valueIt), true);
 							}else if(valLabel.find("Color") != string::npos && (*valueIt).GetType() == ValueID::ValueType_String)
 							{
 								setColor(*valueIt);
@@ -629,19 +629,19 @@ void menu() {
 								listchoice = stoi(response);
 								switch(listchoice){
 									case 1:
-										SetIntensity((*valueIt), IntensityScale::VERY_HIGH);
+										setIntensity((*valueIt), IntensityScale::VERY_HIGH);
 										break;
 									case 2:
-										SetIntensity((*valueIt), IntensityScale::HIGH);
+										setIntensity((*valueIt), IntensityScale::HIGH);
 										break;
 									case 3:
-										SetIntensity((*valueIt), IntensityScale::MEDIUM);
+										setIntensity((*valueIt), IntensityScale::MEDIUM);
 										break;
 									case 4:
-										SetIntensity((*valueIt), IntensityScale::LOW);
+										setIntensity((*valueIt), IntensityScale::LOW);
 										break;
 									case 5:
-										SetIntensity((*valueIt), IntensityScale::VERY_LOW);
+										setIntensity((*valueIt), IntensityScale::VERY_LOW);
 										break;
 								}
 								
@@ -652,19 +652,19 @@ void menu() {
 								listchoice = stoi(response);
 								switch(listchoice){
 									case 1:
-										SetIntensity((*valueIt), IntensityScale::VERY_HIGH);
+										setIntensity((*valueIt), IntensityScale::VERY_HIGH);
 										break;
 									case 2:
-										SetIntensity((*valueIt), IntensityScale::HIGH);
+										setIntensity((*valueIt), IntensityScale::HIGH);
 										break;
 									case 3:
-										SetIntensity((*valueIt), IntensityScale::MEDIUM);
+										setIntensity((*valueIt), IntensityScale::MEDIUM);
 										break;
 									case 4:
-										SetIntensity((*valueIt), IntensityScale::LOW);
+										setIntensity((*valueIt), IntensityScale::LOW);
 										break;
 									case 5:
-										SetIntensity((*valueIt), IntensityScale::VERY_LOW);
+										setIntensity((*valueIt), IntensityScale::VERY_LOW);
 										break;
 									default:
 										break;
