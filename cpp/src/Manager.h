@@ -2604,6 +2604,7 @@ namespace OpenZWave
 			 * \param _data Pointer to structure DriverData to return values
 			 */
 			void GetDriverStatistics(uint32 const _homeId, Driver::DriverData* _data);
+			Driver::ControllerState GetDriverState(uint32 const _homeId);
 
 			/**
 			 * \brief Retrieve statistics per node
