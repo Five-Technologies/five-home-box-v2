@@ -33,6 +33,7 @@ static uint8 *bitmap[29];
 static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume"};
 void onNotification(Notification const* notification, void* context);
 void menu();
+void nodeSwitch(int stateInt, int *lock);
 
 int main(int argc, char const *argv[])
 {
@@ -350,9 +351,11 @@ void menu() {
 		bool isOk = false;
 		list<string>::iterator sIt;
 		int choice{ 0 };
+		int lock(0);
+		int stateInt(0);
 		int listchoice{ 0 };
 		int x{ 5 };
-		int counter{ 100 };
+		int counter{ 500 };
 		int counterNode{0};
 		int counterValue{0};
 		list<NodeInfo*>::iterator nodeIt;
@@ -393,9 +396,13 @@ void menu() {
 		switch (choice) {
 		case 1:
 			Manager::Get()->AddNode(Five::homeID, false);
+
 			while (counter --> 0) {
-				cout << "State: " << Manager::Get()->GetDriverState(Five::homeID) << endl;
-				this_thread::sleep_for(chrono::milliseconds(100));
+				thread t2(nodeSwitch, stateInt, &lock);
+				t2.detach();
+				stateInt = Manager::Get()->GetDriverState(Five::homeID);
+				
+				this_thread::sleep_for(chrono::milliseconds(20));
 			}
 			cout << "Done" << endl;
 			break;
@@ -534,6 +541,8 @@ void menu() {
 			menuRun = 0;
 			break;
 		case 6:
+			break;
+		case 7:
 			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
 				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
 			}
@@ -546,8 +555,6 @@ void menu() {
 					Manager::Get()->HealNetworkNode((*nodeIt)->m_homeId, (*nodeIt)->m_nodeId, true);
 				}
 			}
-			break;
-		case 7:
 			break;
 		case 8:
 			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
@@ -773,5 +780,30 @@ void menu() {
 		// cout << "Node removed" << endl;
 		// Manager::Get()->TestNetwork(Five::homeID, 5);
 		// cout << "Name: " << Manager::Get()->GetNodeProductName(Five::homeID, 2).c_str() << endl;
+	}
+}
+
+void nodeSwitch(int stateInt, int *lock){
+	switch (stateInt){
+		case 1:
+			if(*lock != stateInt){
+			cout << "LISTENING FOR NODE: STARTING" << endl;
+			}
+			*lock = 1;
+			break;
+		case 4:
+			if(*lock != stateInt){
+			cout << "WAITING FOR NODE..." << endl;
+			}
+			*lock = 4;
+			break;
+		case 7:
+			if(*lock != stateInt){
+			cout << "NODE HAS BEEN ADDED: COMPLETED" << endl;
+			}
+			*lock = 7;
+			break;
+		default:
+			break;
 	}
 }
