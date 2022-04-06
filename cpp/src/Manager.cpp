@@ -4749,8 +4749,23 @@ if (Driver* driver = GetDriver(_homeId))
 {
 	driver->GetDriverStatistics(_data);
 }
-
 }
+
+Driver::ControllerState Manager::GetDriverState(uint32 const _homeId) {
+	Driver* driver = GetDriver(_homeId);
+
+	if (driver) {
+		if (driver->m_currentControllerCommand) {
+			if (driver->m_currentControllerCommand->m_controllerState) {
+				return driver->m_currentControllerCommand->m_controllerState;
+			}
+		}
+		return driver->ControllerState_Error;
+	}
+	
+	throw std::runtime_error("Error in stateController");
+}
+
 
 //-----------------------------------------------------------------------------
 // <Manager::GetNodeStatistics>

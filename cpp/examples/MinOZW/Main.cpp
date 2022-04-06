@@ -3,6 +3,7 @@
 #include <cstddef>
 #include "Manager.h"
 #include "Options.h"
+#include "Driver.h"
 #include "Notification.h"
 #include "platform/Log.h"
 #include "Node.h"
@@ -35,15 +36,16 @@ void menu();
 
 int main(int argc, char const *argv[])
 {
-	string response;
+	string response{ "0" };
 	cout << "Start process..." << endl;
-	cout << ">>──── LOG LEVEL ────<<\n\n"
-		 << "     0. NONE\n"
-		 << "     1. WARNING\n"
-		 << "     2. INFO\n"
-		 << "     3. DEBUG\n\n"
-		 << "Select the log level (0, 1, 2, 3): ";
-	cin >> response;
+	
+	// cout << ">>──── LOG LEVEL ────<<\n\n"
+	// 	 << "     0. NONE\n"
+	// 	 << "     1. WARNING\n"
+	// 	 << "     2. INFO\n"
+	// 	 << "     3. DEBUG\n\n"
+	// 	 << "Select the log level (0, 1, 2, 3): ";
+	// cin >> response;
 
 	switch (stoi(response)) {
 	case 0:
@@ -160,17 +162,19 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_ValueChanged:
 			Manager::Get()->GetValueAsString(valueID, ptr_container);
 			Manager::Get()->GetNodeStatistics(valueID.GetHomeId(), valueID.GetNodeId(), ptr_nodeData);
+			// cout << "Hello" << endl;
+			// cout << "current state: " << Manager::Get()->GetDriverState(notification->GetHomeId()) << endl;
 			
 			log += "[VALUE_CHANGED]                   node "
 			    + to_string(valueID.GetNodeId()) + ", " 
 				+ Manager::Get()->GetValueLabel(valueID) + ": " 
 				+ *ptr_container + '\n';
-			
+						
 			notifType = "VALUE CHANGED";
-			Manager::Get()->SyncronizeNodeNeighbors(valueID.GetHomeId(), valueID.GetNodeId());
+			// Manager::Get()->SyncronizeNodeNeighbors(valueID.GetHomeId(), valueID.GetNodeId());
 			// cout << "pointer: " << (*ptr_nodeData).m_routeScheme << endl;
 			// cout << "route: " << Manager::Get()->GetNodeRouteScheme(ptr_nodeData) << endl;
-			Manager::Get()->RequestNodeNeighborUpdate(valueID.GetHomeId(), valueID.GetNodeId());
+			// Manager::Get()->RequestNodeNeighborUpdate(valueID.GetHomeId(), valueID.GetNodeId());
 
 			valueID = notification->GetValueID();
 			// cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
@@ -348,6 +352,7 @@ void menu() {
 		int choice{ 0 };
 		int listchoice{ 0 };
 		int x{ 5 };
+		int counter{ 100 };
 		int counterNode{0};
 		int counterValue{0};
 		list<NodeInfo*>::iterator nodeIt;
@@ -388,6 +393,11 @@ void menu() {
 		switch (choice) {
 		case 1:
 			Manager::Get()->AddNode(Five::homeID, false);
+			while (counter --> 0) {
+				cout << "State: " << Manager::Get()->GetDriverState(Five::homeID) << endl;
+				this_thread::sleep_for(chrono::milliseconds(100));
+			}
+			cout << "Done" << endl;
 			break;
 		case 2:
 			Manager::Get()->RemoveNode(Five::homeID);
