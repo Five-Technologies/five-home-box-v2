@@ -400,7 +400,8 @@ void onNotification(Notification const* notification, void* context) {
 }
 
 void menu() {
-	while(true){
+	bool menuRun(1);
+	while(menuRun){
 		string response;
 		bool isOk = false;
 		list<string>::iterator sIt;
@@ -567,21 +568,22 @@ void menu() {
 
 			break;
 		case 5:
-			while(true){
-				cout << "Choose between: " << endl;
-				cout << "1. Hard Reset (Z-Wave Network will be deleted during reset)\n" << "2. Soft Reset (Z-Wave Network will be kept during reset)\n";
+			cout << "Choose between: " << endl;
+			cout << "1. Hard Reset (Z-Wave Network will be deleted during reset)\n" << "2. Soft Reset (Z-Wave Network will be kept during reset)\n";
+			while(!isOk){
 				cin >> response;
 				choice = stoi(response);
 				if(choice == 1){
 					Manager::Get()->ResetController(g_homeId);
-					break;
+					isOk = true;
 				}else if(choice == 2){
 					Manager::Get()->SoftReset(g_homeId);
-					break;
+					isOk = true;
 				}else {
 					cout << "Please enter 1 or 2\n";
 				}
 			}
+			menuRun = 0;
 			break;
 		case 6:
 			for (nodeIt = g_nodes.begin(); nodeIt != g_nodes.end(); nodeIt++){
