@@ -25,6 +25,7 @@ static pthread_cond_t  initCond  = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t initMutex;
 
 bool g_menuLocked{ true };
+bool g_checkLocked(1);
 auto start{ getCurrentDatetime() };
 tm* tm_start{ convertDateTime(start) };
 
@@ -34,10 +35,11 @@ static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volum
 void onNotification(Notification const* notification, void* context);
 void menu();
 void nodeSwitch(int stateInt, int *lock);
+//void CheckFailedNode(uint32 homeID, string path);
 
 int main(int argc, char const *argv[])
 {
-	string response{ "0" };
+	string response{ "3" };
 	cout << "Start process..." << endl;
 	
 	// cout << ">>──── LOG LEVEL ────<<\n\n"
@@ -88,12 +90,19 @@ int main(int argc, char const *argv[])
 	Manager::Get()->AddWatcher(onNotification, NULL);
 	Manager::Get()->AddDriver(PORT);
 
+
 	if (g_menuLocked) {
 		thread t1(menu);
 		t1.detach();
 		g_menuLocked = false;
 	}
 
+	// if (g_checkLocked){
+	// 	thread t2(CheckFailedNode, homeID, "FailedNodeList.txt");
+	// 	t2.detach();
+	//this_thread::sleep_for(chrono::seconds(30));
+		//g_checkLocked = false;
+	//}
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
 
@@ -398,8 +407,9 @@ void menu() {
 			Manager::Get()->AddNode(Five::homeID, false);
 
 			while (counter --> 0) {
-				thread t2(nodeSwitch, stateInt, &lock);
-				t2.detach();
+				thread t3(nodeSwitch, stateInt, &lock);
+				t3.detach();
+				cout << homeID << endl;
 				stateInt = Manager::Get()->GetDriverState(Five::homeID);
 				
 				this_thread::sleep_for(chrono::milliseconds(20));
@@ -807,3 +817,47 @@ void nodeSwitch(int stateInt, int *lock){
 			break;
 	}
 }
+
+// void CheckFailedNode(uint32 homeID, string path){
+// 	while(true){
+// 		list<NodeInfo*>::iterator it;
+// 		ofstream fileOut;
+// 		fileOut.open(path);
+// 		cout << "test" << endl;
+// 		this_thread::sleep_for(chrono::seconds(20));
+
+// 		for(it = n.begin(); it != n.end(); it++){
+// 			cout << "in node for" << endl;
+// 			uint8 nodeId = (*it)->m_nodeId;
+// 			string line;
+// 			string nodeName = (*it)->m_name;
+// 			string nodeType = (*it)->m_nodeType;
+// 			cout << Five::homeID << endl;
+// 			cout << (*it)->m_homeId << endl;
+// 			if(Manager::Get()->IsNodeFailed((*it)->m_homeId, nodeId)){
+// 				cout << "NODE HAS FAILED: " << nodeName << " id: " << nodeId << endl;
+// 				fileOut << "Label: " << nodeName << " Id: " << nodeId << " Type: " << nodeType << endl;			
+// 			}else if(!(Manager::Get()->IsNodeFailed(homeID, nodeId))){
+// 				cout << "node not failed" << endl;
+// 				ifstream fileIn;
+// 				ofstream temp;
+// 				temp.open("temp.txt");
+// 				while(getline(fileIn, line)){
+// 					if(line.find("Label: " + nodeName) == string::npos){
+// 						temp << line;
+// 					}
+// 				}
+// 				temp.close();
+// 				fileIn.close();
+// 				fileOut.close();
+
+// 				const char *p = path.c_str();
+// 				remove(p);
+// 				rename("temp.txt", p);
+// 			}
+// 		}
+// 		if(fileOut.is_open()){
+// 			fileOut.close();
+// 		}
+// 	}
+// }
