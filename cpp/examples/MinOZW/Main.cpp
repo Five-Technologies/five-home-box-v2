@@ -404,17 +404,16 @@ void menu() {
 
 		switch (choice) {
 		case 1:
+		{
 			Manager::Get()->AddNode(Five::homeID, false);
 
-			while (counter --> 0) {
-				thread t3(nodeSwitch, stateInt, &lock);
-				t3.detach();
-				stateInt = Manager::Get()->GetDriverState(Five::homeID);
-				
-				this_thread::sleep_for(chrono::milliseconds(20));
-			}
-			cout << "Done" << endl;
+			
+			thread t3(nodeSwitch, stateInt, &lock);
+			t3.detach();
+			stateInt = Manager::Get()->GetDriverState(Five::homeID);
+			
 			break;
+		}
 		case 2:
 			Manager::Get()->RemoveNode(Five::homeID);
 			break;
@@ -793,28 +792,33 @@ void menu() {
 }
 
 void nodeSwitch(int stateInt, int *lock){
-	switch (stateInt){
-		case 1:
-			if(*lock != stateInt){
-			cout << "LISTENING FOR NODE: STARTING" << endl;
-			}
-			*lock = 1;
-			break;
-		case 4:
-			if(*lock != stateInt){
-			cout << "WAITING FOR NODE..." << endl;
-			}
-			*lock = 4;
-			break;
-		case 7:
-			if(*lock != stateInt){
-			cout << "NODE HAS BEEN ADDED: COMPLETED" << endl;
-			}
-			*lock = 7;
-			break;
-		default:
-			break;
+	int counter(500);
+	while (counter --> 0) {
+		switch (stateInt){
+			case 1:
+				if(*lock != stateInt){
+				cout << "LISTENING FOR NODE: STARTING" << endl;
+				}
+				*lock = 1;
+				break;
+			case 4:
+				if(*lock != stateInt){
+				cout << "WAITING FOR NODE..." << endl;
+				}
+				*lock = 4;
+				break;
+			case 7:
+				if(*lock != stateInt){
+				cout << "NODE HAS BEEN ADDED: COMPLETED" << endl;
+				}
+				*lock = 7;
+				break;
+			default:
+				break;
+		}
+		this_thread::sleep_for(chrono::milliseconds(20));
 	}
+	cout << "Done" << endl;
 }
 
 void CheckFailedNode(string path){
