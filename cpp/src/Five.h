@@ -43,11 +43,14 @@ namespace Five
     list<NodeInfo*>* nodes = &n;
     const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume" };
     const string CACHE_PATH{ "cpp/examples/cache/" };
-    const string NODE_LOG_PATH{ "cpp/examples/cache/nodes/" };
+    const string NODE_LOG_PATH{ CACHE_PATH + "nodes/" };
+    const string FAILED_NODE_PATH{ CACHE_PATH + "failed_nodes.log" };
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
     const string PORT{ "/dev/ttyACM0" };
+    const int failedNodeInterval{ 300 }; // in seconds
     uint32 homeID{ 0 };
+    const int NEIGHBOR_BITMAP_LENGTH{ 29 };
     logLevel LEVEL;
 
     // Config method
