@@ -3,12 +3,11 @@
         "iostream": "cpp",
         "string": "cpp",
         "ostream": "cpp",
-<<<<<<< HEAD
         "iterator": "cpp",
-        "iosfwd": "cpp"
-=======
-        "iterator": "cpp"
->>>>>>> develop
+        "iosfwd": "cpp",
+        "thread": "cpp",
+        "bitset": "cpp",
+        "string_view": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
