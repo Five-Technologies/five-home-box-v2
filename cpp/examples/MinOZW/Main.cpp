@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <cmath>
 #include <bitset>
+#include "command_classes/CommandClass.h"
 
 using namespace OpenZWave;
 using namespace Five;
@@ -34,10 +35,11 @@ static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volum
 void onNotification(Notification const* notification, void* context);
 void menu();
 
-int main(int argc, char const *argv[])
-{
-	string response{ "0" };
+int main(int argc, char const *argv[]) {
+	string response{ "3" };
 	cout << "Start process..." << endl;
+
+	
 	
 	// cout << ">>──── LOG LEVEL ────<<\n\n"
 	// 	 << "     0. NONE\n"
@@ -120,16 +122,18 @@ void onNotification(Notification const* notification, void* context) {
 	Node::NodeData nodeData;
 	Node::NodeData* ptr_nodeData = &nodeData;
 	Driver::DriverData driver_data;
-
-	if (containsType(notification->GetType(), Five::AliveNotification)) {
-		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
-			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
-			if (n->m_isDead) {
-				n->m_isDead = false;
-				cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
-				cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
-				cout << "   - alive: " << aliveNodeSum(nodes) << endl;
-				cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
+	
+	if (LEVEL != logLevel::NONE) {
+		if (containsType(notification->GetType(), Five::AliveNotification)) {
+			if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
+				NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
+				if (n->m_isDead) {
+					n->m_isDead = false;
+					cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
+					cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
+					cout << "   - alive: " << aliveNodeSum(nodes) << endl;
+					cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
+				}
 			}
 		}
 	}
@@ -180,21 +184,22 @@ void onNotification(Notification const* notification, void* context) {
 			// cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRefreshed:
+			Manager::Get()->GetValueAsString(valueID, ptr_container);
 			log += "[VALUE_REFRESHED]                 node " + to_string(valueID.GetNodeId()) + ", "
-			     + Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + ", "
-				 + ", neigbors: " + to_string(Manager::Get()->GetNodeNeighbors(valueID.GetHomeId(), 1, bitmap)) + '\n';
+			     + Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + "\n";
+				//  + ", neigbors: " + to_string(Manager::Get()->GetNodeNeighbors(valueID.GetHomeId(), 1, bitmap)) + '\n';
 			
 			notifType = "VALUE REFRESHED";
-			Manager::Get()->GetValueAsString(valueID, ptr_container);
 
-			// for (i = 0; i < 29; i++) {
-			// 	// for (j = 0; j < 8; j++) {
-			// 	// 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
-			// 	// }
-			// 	// cout << '\n';
-			// 	// cout << bitset<8>((*bitmap)[i]) << '\n';
-			// 	cout << to_string((*bitmap)[i]) << endl;
+			// for (int i = 0; i < 29; i++) {
+				// for (j = 0; j < 8; j++) {
+				// 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
+				// }
+				// cout << '\n';
+				// cout << bitset<8>((*bitmap)[i]) << '\n';
+			// 	cout << to_string((*bitmap)[i]);
 			// }
+			// cout << '\n';
 			
 			break;
 		case Notification::Type_Group:
@@ -251,6 +256,7 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[DRIVER_READY]                    driver READY\n" + getDriverData(notification->GetHomeId()) + '\n';
 			notifType = "DRIVER READY";
 			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
+			
 			break;
 		case Notification::Type_DriverFailed:
 			notifType = "DRIVER FAILED";
@@ -345,18 +351,19 @@ void onNotification(Notification const* notification, void* context) {
 
 void menu() {
 	bool menuRun(1);
+	
 	while(menuRun){
 		string response;
 		bool isOk = false;
 		list<string>::iterator sIt;
 		int choice{ 0 };
 		int listchoice{ 0 };
-		int x{ 5 };
+		int x{ 3 };
 		int counter{ 100 };
 		int counterNode{0};
 		int counterValue{0};
-		list<NodeInfo*>::iterator nodeIt;
-		list<ValueID>::iterator valueIt;
+		list<NodeInfo*>::iterator it;
+		list<ValueID>::iterator it2;
 		string container;
 		string* ptr_container = &container;
 		string fileName{ "" };
@@ -365,22 +372,18 @@ void menu() {
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 
-		// if (std::find(g_setTypes.begin(), g_setTypes.end(), "Duration") != g_setTypes.end()){
-		// 	cout << "Works" << endl;
-		// }
-
-		cout << "\n>>──────| MENU |──────<<\n" << endl;
-		cout << "     1. Add node" << endl;
-		cout << "     2. Remove node" << endl;
-		cout << "     3. Get value" << endl;
-		cout << "     4. Set value (old)" << endl;
-		cout << "     5. Reset Key" << endl;
-		cout << "     6. Wake Up" << endl;
-		cout << "     7. Heal" << endl;
-		cout << "     8. Set value (new)" << endl;
-		cout << "     9. Get network" << endl;
-
-		cout << "\nSelect a number: ";
+		cout << "\n>>──────|MENU|──────<<\n\n"
+			 << "[1] Add node\n"
+		  	 << "[2] Remove node\n"
+		 	 << "[3] Get value\n"
+		 	 << "[4] Set value (old)\n"
+		 	 << "[5] Reset Key\n"
+		 	 << "[6] Wake Up\n"
+		 	 << "[7] Heal\n"
+		 	 << "[8] Set value (new)\n"
+			 << "[9] Network\n"
+			 << "\nChoose: ";
+		
 		cin >> response;
 
 		try {
@@ -389,8 +392,112 @@ void menu() {
 			std::cerr << e.what() << '\n';
 		}
 
-
 		switch (choice) {
+			case 9:
+				cout << "\n>>───|NETWORK|───<<\n\n"
+					 << "[1] ping\n"
+					 << "[2] broadcast\n"
+					 << "[3] neighbors\n"
+					 << "[4] polls\n"
+					 << "\nChoose ('q' to exit): ";
+				
+				cin >> response;
+
+				if (response == "1") {
+					cout << "\n>>───|PING|───<<\n\n";
+
+					for (it = nodes->begin(); it != nodes->end(); it++) {
+						cout << "       [ " << to_string((*it)->m_nodeId) << " ]\n";
+					}
+					cout << "\nChoose ('q' to exit): ";
+					cin >> response;
+
+					for (it = nodes->begin(); it != nodes->end(); it++) {
+						cout << response << " " << to_string((*it)->m_nodeId) << '\n';
+						if (response == to_string((*it)->m_nodeId)) {
+							for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+								if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
+									cout << "Ping sent...\n";
+									int counter{ 500 };
+									while (counter --> 0) {
+										Manager::Get()->RefreshValue(*it2);
+										
+										this_thread::sleep_for(chrono::milliseconds(500));
+										cout << "ask..." << Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId) << "\n";
+									}
+									cout << "Done\n";
+								}
+							}
+						}
+					}
+				} else if (response == "2") {
+					cout << "\n>>─────|BROADCAST|─────<<\n\n";
+				} else if (response == "3") {
+					cout << "\n>>─────|NEIGHBORS|─────<<\n\n";
+						
+					for (it = nodes->begin(); it != nodes->end(); it++) {
+						cout << "       [ " << to_string((*it)->m_nodeId) << " ]\n";
+					}
+					cout << "\nChoose ('q' to exit): ";
+					cin >> response;
+				} else if (response == "4") {
+					cout << "\n>>─────|POLLS|─────<<\n\n"
+						 << "/!\\ If you set the poll intensity, you must restart the ZWave key to add modification.\n\n"
+						 << "[1] Set intensity\n"
+						 << "[2] Set interval for all devices (PLEASE BE CAREFUL)\n\n"
+						 << "Choose ('q' to exit): ";
+					
+					cin >> response;
+					cout << "\n";
+
+					if (response == "1") {
+						for (it = nodes->begin(); it != nodes->end(); it++) {
+							cout << "[" << to_string((*it)->m_nodeId) << "] " << (*it)->m_name << "\n";
+						}
+						cout << "\nSelect a node ('q' to exit): ";
+						cin >> response;
+						cout << '\n';
+
+						for (it = nodes->begin(); it != nodes->end(); it++) {
+							if (response == to_string((*it)->m_nodeId)) {
+								for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+									cout << "[" << to_string(counterValue++) << "] " << Manager::Get()->GetValueLabel(*it2)
+									     << ", " << to_string(Manager::Get()->GetPollIntensity(*it2)) << "\n";
+								}
+
+								cout << "\nSelect a valueID (press 'q' to exit): ";
+								cin >> response;
+								counterValue = 0;
+
+								for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+									if (response == to_string(counterValue++)) {
+										cout << "\nValueID \"" << Manager::Get()->GetValueLabel(*it2) 
+											<< "\", current: " << to_string(Manager::Get()->GetPollIntensity(*it2))
+											<< " poll(s)/interval\n";
+
+										cout << "\nSet intensity (0=none, 1=every time through the list, 2-every other time, 'q' to exit): ";
+										cin >> response;
+
+										if (response != "q") {
+											Manager::Get()->SetPollIntensity(*it2, stoi(response));
+											cout << "Done\n";
+										}
+										break;											
+									}
+								}
+							}
+						}
+					} else if (response == "2") {
+						cout << "/!\\ [PLEASE READ] Set the time period between polls of a node's state. Due to patent concerns, some devices do not report state changes automatically to the controller. These devices need to have their state polled at regular intervals. The length of the interval is the same for all devices. To even out the Z-Wave network traffic generated by polling, OpenZWave divides the polling interval by the number of devices that have polling enabled, and polls each in turn. It is recommended that if possible, the interval should not be set shorter than the number of polled devices in seconds (so that the network does not have to cope with more than one poll per second).\n\nCurrent poll interval: " << Manager::Get()->GetPollInterval() << "ms\n\nSet interval in milliseconds ('q' to exit): ";
+						cin >> response;
+
+						if (response != "q") {
+							Manager::Get()->SetPollInterval(stoi(response), false);
+							cout << "Done.\n";
+						}
+					}
+				}
+				break;
 		case 1:
 			Manager::Get()->AddNode(Five::homeID, false);
 			while (counter --> 0) {
@@ -403,47 +510,31 @@ void menu() {
 			Manager::Get()->RemoveNode(Five::homeID);
 			break;
 		case 3:
-			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++) {
+		cout << "\n";
+			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++) {
 				counterNode++;
-				cout << counterNode << ". " << (*nodeIt)->m_name << endl;
+				cout << "[" << to_string((*it)->m_nodeId) << "] " << (*it)->m_name << endl;
 			}
 
-			cout << "\nChoose the node from which you want the values: " << endl;
-
+			cout << "\nChoose ('q' to exit): ";
 			cin >> response;
-			choice = stoi(response);
-			counterNode = 0;
 			
-			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
-				counterNode++;
-				if (counterNode == choice) {
-					for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++) {
-						Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-						cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << " : " << *ptr_container << endl;
-						counterValue++;
+			for(it =nodes->begin(); it != nodes->end(); it++){
+				if (response == to_string((*it)->m_nodeId)) {
+					cout << "\n>>────|VALUES OF THE NODE " << to_string((*it)->m_nodeId) << "|────<<\n\n";
+					for(it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+						Manager::Get()->GetValueAsString((*it2), ptr_container);
+						cout << "[" << counterValue++ << "] " << Manager::Get()->GetValueLabel(*it2) << " : " << *ptr_container << endl;
 					}
-					
-					// cout << "\nChoose a valueID: ";
-					// cin >> response;
-					// choice = stoi(response);
-
-					// for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
-					// 	if (choice == std::distance((*nodeIt)->m_values.begin(), valueIt)) {
-					// 		cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
-					// 		Manager::Get()->GetValueAsString((*valueIt), ptr_container);
-					// 		cout << "Current value: " << *ptr_container << endl;
-					// 		break;
-					// 	}
-					// }
 				}
 			}
 			break;
 		case 4:
 			cout << "Choose what node you want to set a value from: " << endl;
-			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
+			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 			{
 				counterNode++;
-				cout << counterNode << ". " << (*nodeIt)->m_name << endl;
+				cout << counterNode << ". " << (*it)->m_name << endl;
 			}
 
 			cout << "\nChoose what node you want a value from: " << endl;
@@ -452,16 +543,16 @@ void menu() {
 			choice = stoi(response);
 			counterNode = 0;
 			cout << "Choose the value to set: " << endl;
-			for(nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
+			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 			{
 				counterNode++;
 				if (counterNode == choice)
 				{
-					for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
+					for(it2 = (*it) -> m_values.begin(); it2 != (*it) -> m_values.end(); it2++)
 					{
-						if(!Manager::Get()->IsValueReadOnly(*valueIt)){
+						if(!Manager::Get()->IsValueReadOnly(*it2)){
 							counterValue++;
-							cout << counterValue << ". " << Manager::Get()->GetValueLabel(*valueIt) << endl;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel(*it2) << endl;
 						}
 						
 					}
@@ -471,23 +562,23 @@ void menu() {
 					counterValue = 0;
 					choice = stoi(response);
 
-					for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++) {
+					for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
 						// Manager::Get()->GetValueAsString(*valueIt, ptr_container);
 						// cout << Manager::Get()->GetValueLabel(*valueIt) << ": " << *ptr_container << endl;
-						if(!Manager::Get()->IsValueReadOnly(*valueIt)){
+						if(!Manager::Get()->IsValueReadOnly(*it2)){
 							counterValue++;
 						}
 						
 						if (choice == counterValue) {
-							cout << Manager::Get()->GetValueLabel(*valueIt) << valueIt->GetAsString() << endl;
-							Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+							cout << Manager::Get()->GetValueLabel(*it2) << it2->GetAsString() << endl;
+							Manager::Get()->GetValueAsString((*it2), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
 							cout << "Set to what ? ";
 							cin >> response;
 							// int test = 0;
 							// int* testptr = &test;
 							//setUnit((*valueIt));
-							Manager::Get()->SetValue((*valueIt), response);
+							Manager::Get()->SetValue((*it2), response);
 							//Manager::Get()->GetValueAsInt((*valueIt), testptr);
 							//cout << *testptr;
 							break;
@@ -534,25 +625,25 @@ void menu() {
 			menuRun = 0;
 			break;
 		case 6:
-			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
-				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
+			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++){
+				cout << unsigned((*it)->m_nodeId) << ". " << (*it)->m_name << endl;
 			}
 			cout << "Which node do you want to heal ?";
 			cin >> response;
 			choice = stoi(response);
 
-			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++){
-				if ((*nodeIt)->m_nodeId == choice){
-					Manager::Get()->HealNetworkNode((*nodeIt)->m_homeId, (*nodeIt)->m_nodeId, true);
+			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++){
+				if ((*it)->m_nodeId == choice){
+					Manager::Get()->HealNetworkNode((*it)->m_homeId, (*it)->m_nodeId, true);
 				}
 			}
 			break;
 		case 7:
 			break;
 		case 8:
-			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
+			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 			{
-				cout << unsigned((*nodeIt)->m_nodeId) << ". " << (*nodeIt)->m_name << endl;
+				cout << unsigned((*it)->m_nodeId) << ". " << (*it)->m_name << endl;
 			}
 
 			cout << "\nChoose what node you want a value from: " << endl;
@@ -560,21 +651,21 @@ void menu() {
 			cin >> response;
 			choice = stoi(response);
 			//counterNode = 0;
-			for (nodeIt =Five::nodes->begin(); nodeIt !=Five::nodes->end(); nodeIt++)
+			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 			{
-				if ((*nodeIt)->m_nodeId == choice)
+				if ((*it)->m_nodeId == choice)
 				{
-					for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+					for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++)
 					{
-						if ((ValueID::ValueType_List == (*valueIt).GetType() || ValueID::ValueType_Button == (*valueIt).GetType()) && !Manager::Get()->IsValueReadOnly(*valueIt))
+						if ((ValueID::ValueType_List == (*it2).GetType() || ValueID::ValueType_Button == (*it2).GetType()) && !Manager::Get()->IsValueReadOnly(*it2))
 						{
 							counterValue++;
-							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+							cout << counterValue << ". " << Manager::Get()->GetValueLabel((*it2)) << endl;
 						}else for(sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
-							if (Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*valueIt))
+							if (Manager::Get()->GetValueLabel((*it2)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*it2))
 							{
 								counterValue++;
-								cout << counterValue << ". " << Manager::Get()->GetValueLabel((*valueIt)) << endl;
+								cout << counterValue << ". " << Manager::Get()->GetValueLabel((*it2)) << endl;
 							}
 						}
 						
@@ -586,44 +677,44 @@ void menu() {
 			cin >> response;
 			choice = stoi(response);
 			counterValue = 0;
-			for (valueIt = (*nodeIt)->m_values.begin(); valueIt != (*nodeIt)->m_values.end(); valueIt++)
+			for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++)
 			{
-				if (ValueID::ValueType_Button == (*valueIt).GetType() && !Manager::Get()->IsValueReadOnly(*valueIt))
+				if (ValueID::ValueType_Button == (*it2).GetType() && !Manager::Get()->IsValueReadOnly(*it2))
 				{
 					counterValue++;
 					if (choice == counterValue)
 					{
-						setButton((*valueIt));
+						setButton((*it2));
 					}
 					
 				}
-				if (ValueID::ValueType_List == (*valueIt).GetType() && !Manager::Get()->IsValueReadOnly(*valueIt))
+				if (ValueID::ValueType_List == (*it2).GetType() && !Manager::Get()->IsValueReadOnly(*it2))
 				{
 					counterValue++;
 					if (choice == counterValue)
 					{
-						Five::setList((*valueIt));
+						Five::setList((*it2));
 					}
 					
 				}else for (sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt){
-					if(Manager::Get()->GetValueLabel((*valueIt)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*valueIt)){
+					if(Manager::Get()->GetValueLabel((*it2)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*it2)){
 						counterValue++;
 						if (choice == counterValue)
 						{
-							string valLabel = Manager::Get()->GetValueLabel(*valueIt);
+							string valLabel = Manager::Get()->GetValueLabel(*it2);
 							cout << "You chose " << valLabel << endl;
-							Manager::Get()->GetValueAsString((*valueIt), ptr_container);
+							Manager::Get()->GetValueAsString((*it2), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
 							// cout << "Set to what ? ";
 							//cin >> response;
 
 							//Checking value type to choose the right method
 							if(valLabel.find("Switch") != string::npos){
-								setSwitch((*valueIt), true);
-							}else if(valLabel.find("Color") != string::npos && (*valueIt).GetType() == ValueID::ValueType_String)
+								setSwitch((*it2), true);
+							}else if(valLabel.find("Color") != string::npos && (*it2).GetType() == ValueID::ValueType_String)
 							{
-								setColor(*valueIt);
-							} else if(valLabel.find("Level") != string::npos && (*valueIt).GetType() == ValueID::ValueType_Byte)
+								setColor(*it2);
+							} else if(valLabel.find("Level") != string::npos && (*it2).GetType() == ValueID::ValueType_Byte)
 							{
 								cout << "Choose a value between:" << endl << "1. Very High\n" << "2. High\n" << "3. Medium\n" << "4. Low\n" << "5. Very Low\n"; 
 								while(!isOk){
@@ -639,19 +730,19 @@ void menu() {
 								listchoice = stoi(response);
 								switch(listchoice){
 									case 1:
-										setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+										setIntensity((*it2), IntensityScale::VERY_HIGH);
 										break;
 									case 2:
-										setIntensity((*valueIt), IntensityScale::HIGH);
+										setIntensity((*it2), IntensityScale::HIGH);
 										break;
 									case 3:
-										setIntensity((*valueIt), IntensityScale::MEDIUM);
+										setIntensity((*it2), IntensityScale::MEDIUM);
 										break;
 									case 4:
-										setIntensity((*valueIt), IntensityScale::LOW);
+										setIntensity((*it2), IntensityScale::LOW);
 										break;
 									case 5:
-										setIntensity((*valueIt), IntensityScale::VERY_LOW);
+										setIntensity((*it2), IntensityScale::VERY_LOW);
 										break;
 								}
 								
@@ -662,19 +753,19 @@ void menu() {
 								listchoice = stoi(response);
 								switch(listchoice){
 									case 1:
-										setIntensity((*valueIt), IntensityScale::VERY_HIGH);
+										setIntensity((*it2), IntensityScale::VERY_HIGH);
 										break;
 									case 2:
-										setIntensity((*valueIt), IntensityScale::HIGH);
+										setIntensity((*it2), IntensityScale::HIGH);
 										break;
 									case 3:
-										setIntensity((*valueIt), IntensityScale::MEDIUM);
+										setIntensity((*it2), IntensityScale::MEDIUM);
 										break;
 									case 4:
-										setIntensity((*valueIt), IntensityScale::LOW);
+										setIntensity((*it2), IntensityScale::LOW);
 										break;
 									case 5:
-										setIntensity((*valueIt), IntensityScale::VERY_LOW);
+										setIntensity((*it2), IntensityScale::VERY_LOW);
 										break;
 									default:
 										break;
@@ -682,11 +773,11 @@ void menu() {
 							}else if(valLabel.find("Duration") != string::npos)
 							{
 								cout << "test" << endl;
-								setDuration((*valueIt));
-							}else if((*valueIt).GetType() == ValueID::ValueType_Int){
-								setInt(*valueIt);
-							}else if((*valueIt).GetType() == ValueID::ValueType_Bool){
-								setBool(*valueIt);
+								setDuration((*it2));
+							}else if((*it2).GetType() == ValueID::ValueType_Int){
+								setInt(*it2);
+							}else if((*it2).GetType() == ValueID::ValueType_Bool){
+								setBool(*it2);
 							}
 							//Manager::Get()->SetValue((*valueIt), response);
 							break;

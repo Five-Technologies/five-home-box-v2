@@ -1583,8 +1583,8 @@ DISTFILES =	.gitignore \
 	cpp/hidapi/windows/hidapi.sln \
 	cpp/hidapi/windows/hidapi.vcproj \
 	cpp/hidapi/windows/hidtest.vcproj \
-	cpp/src/Five.cpp \
-	cpp/src/Five.h \
+	cpp/src/five/Five.cpp \
+	cpp/src/five/Five.h \
 	cpp/src/Bitfield.cpp \
 	cpp/src/Bitfield.h \
 	cpp/src/CompatOptionManager.cpp \
