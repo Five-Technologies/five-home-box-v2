@@ -35,7 +35,7 @@ static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volum
 void onNotification(Notification const* notification, void* context);
 void menu();
 void nodeSwitch(int stateInt, int *lock);
-//void CheckFailedNode(uint32 homeID, string path);
+void CheckFailedNode(string path);
 
 int main(int argc, char const *argv[])
 {
@@ -97,12 +97,12 @@ int main(int argc, char const *argv[])
 		g_menuLocked = false;
 	}
 
-	// if (g_checkLocked){
-	// 	thread t2(CheckFailedNode, homeID, "FailedNodeList.txt");
-	// 	t2.detach();
-	//this_thread::sleep_for(chrono::seconds(30));
-		//g_checkLocked = false;
-	//}
+	if (g_checkLocked){
+		thread t2(CheckFailedNode,"cpp/examples/cache/FailedNodeList.txt");
+		t2.detach();
+	this_thread::sleep_for(chrono::seconds(30));
+		g_checkLocked = false;
+	}
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
 
@@ -409,7 +409,6 @@ void menu() {
 			while (counter --> 0) {
 				thread t3(nodeSwitch, stateInt, &lock);
 				t3.detach();
-				cout << homeID << endl;
 				stateInt = Manager::Get()->GetDriverState(Five::homeID);
 				
 				this_thread::sleep_for(chrono::milliseconds(20));
@@ -818,46 +817,54 @@ void nodeSwitch(int stateInt, int *lock){
 	}
 }
 
-// void CheckFailedNode(uint32 homeID, string path){
-// 	while(true){
-// 		list<NodeInfo*>::iterator it;
-// 		ofstream fileOut;
-// 		fileOut.open(path);
-// 		cout << "test" << endl;
-// 		this_thread::sleep_for(chrono::seconds(20));
+void CheckFailedNode(string path){
+	while(true){
+		list<NodeInfo*>::iterator it;
+		fstream file;
+		bool isIn(0);
+		this_thread::sleep_for(chrono::seconds(30));
 
-// 		for(it = n.begin(); it != n.end(); it++){
-// 			cout << "in node for" << endl;
-// 			uint8 nodeId = (*it)->m_nodeId;
-// 			string line;
-// 			string nodeName = (*it)->m_name;
-// 			string nodeType = (*it)->m_nodeType;
-// 			cout << Five::homeID << endl;
-// 			cout << (*it)->m_homeId << endl;
-// 			if(Manager::Get()->IsNodeFailed((*it)->m_homeId, nodeId)){
-// 				cout << "NODE HAS FAILED: " << nodeName << " id: " << nodeId << endl;
-// 				fileOut << "Label: " << nodeName << " Id: " << nodeId << " Type: " << nodeType << endl;			
-// 			}else if(!(Manager::Get()->IsNodeFailed(homeID, nodeId))){
-// 				cout << "node not failed" << endl;
-// 				ifstream fileIn;
-// 				ofstream temp;
-// 				temp.open("temp.txt");
-// 				while(getline(fileIn, line)){
-// 					if(line.find("Label: " + nodeName) == string::npos){
-// 						temp << line;
-// 					}
-// 				}
-// 				temp.close();
-// 				fileIn.close();
-// 				fileOut.close();
+		for(it = n.begin(); it != n.end(); it++){
+			cout << "in node for" << endl;
+			uint8 nodeId = (*it)->m_nodeId;
+			string line;
+			string nodeName = (*it)->m_name;
+			string nodeType = (*it)->m_nodeType;
+			if(Manager::Get()->IsNodeFailed(homeID, nodeId)){
+				file.open(path, ios::in);
+				while(getline(file, line)){
+					if(line.find("Label: " + nodeName) != string::npos){
+						isIn = 1;
+					}
+				}
+				file.close();
+				cout << "NODE HAS FAILED: " << nodeName << " id: " << unsigned(nodeId) << endl;
+				if(!isIn){
+					file.open(path, ios::app);
+					file << "Label: " << nodeName << " Id: " << unsigned(nodeId) << " Type: " << nodeType << endl;
+					file.close();			
+				}
+			}else if(!(Manager::Get()->IsNodeFailed(homeID, nodeId))){
+				cout << "node not failed" << "id: " << unsigned(nodeId) << endl;
+				file.open(path, ios::in);
+				fstream temp;
+				temp.open("temp.txt", ios::app);
+				while(getline(file, line)){
+					cout << line << endl;
+					string s = "Label: " + nodeName;
+					cout << s << endl;
+					if(line.find(s) == string::npos){
+						temp << line;
+					}
+				}
+				temp.close();
+				file.close();
 
-// 				const char *p = path.c_str();
-// 				remove(p);
-// 				rename("temp.txt", p);
-// 			}
-// 		}
-// 		if(fileOut.is_open()){
-// 			fileOut.close();
-// 		}
-// 	}
-// }
+				const char *p = path.c_str();
+				remove(p);
+				rename("temp.txt", p);
+			}
+		}
+
+	}
+}
