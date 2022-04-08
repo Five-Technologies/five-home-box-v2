@@ -913,7 +913,7 @@ void CheckFailedNode(string path){
 		list<NodeInfo*>::iterator it;
 		fstream file;
 		bool isIn(0);
-		this_thread::sleep_for(chrono::seconds(30));
+		this_thread::sleep_for(chrono::minutes(5));
 
 		for(it = n.begin(); it != n.end(); it++){
 			cout << "in node for" << endl;
