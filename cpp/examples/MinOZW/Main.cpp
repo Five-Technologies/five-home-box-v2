@@ -40,7 +40,7 @@ void CheckFailedNode(string path);
 void statusObserver(list<NodeInfo*> *nodes);
 
 int main(int argc, char const *argv[]) {
-	string response{ "3" };
+	string response{ "0" };
 	cout << "Start process..." << endl;
 
 	
