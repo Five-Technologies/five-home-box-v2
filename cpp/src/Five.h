@@ -9,13 +9,13 @@ using namespace OpenZWave;
 namespace Five
 {
     struct NodeInfo {
-        uint32        m_homeId;
-        uint8         m_nodeId;
-        list<ValueID> m_values;
-        string        m_name;
-        string        m_nodeType;
-        time_t        m_sync;
-        bool          m_isDead=true;
+        uint32             m_homeId;
+        uint8              m_nodeId;
+        list<ValueID>      m_values;
+        string             m_name;
+        string             m_nodeType;
+        chrono::high_resolution_clock::time_point m_sync;
+        bool               m_isDead=true;
     };
 
     const vector<Notification::NotificationType> AliveNotification{
@@ -39,7 +39,7 @@ namespace Five
         DEBUG
     };
 
-    list<NodeInfo*> n;
+    list<NodeInfo*> n{};
     list<NodeInfo*>* nodes = &n;
     const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume" };
     const string CACHE_PATH{ "cpp/examples/cache/" };
@@ -48,7 +48,7 @@ namespace Five
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
     const string PORT{ "/dev/ttyACM0" };
-    const int failedNodeInterval{ 300 }; // in seconds
+    const int failedNodeInterval{ 20 }; // in seconds
     uint32 homeID{ 0 };
     const int NEIGHBOR_BITMAP_LENGTH{ 29 };
     logLevel LEVEL;

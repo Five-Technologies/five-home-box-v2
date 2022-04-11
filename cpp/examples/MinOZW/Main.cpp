@@ -37,6 +37,7 @@ void onNotification(Notification const* notification, void* context);
 void menu();
 void nodeSwitch(int stateInt, int *lock);
 void CheckFailedNode(string path);
+void statusObserver(list<NodeInfo*> *nodes);
 
 int main(int argc, char const *argv[]) {
 	string response{ "3" };
@@ -93,18 +94,23 @@ int main(int argc, char const *argv[]) {
 	Manager::Get()->AddDriver(PORT);
 
 
-	if (g_menuLocked) {
-		thread t1(menu);
-		t1.detach();
-		g_menuLocked = false;
-	}
+	// if (g_menuLocked) {
+	// 	thread t1(menu);
+	// 	t1.detach();
+	// 	g_menuLocked = false;
+	// }
 
+	thread t3(statusObserver, Five::nodes);
+	t3.detach();
+	
 	if (g_checkLocked){
 		thread t2(CheckFailedNode, FAILED_NODE_PATH);
 		t2.detach();
-	this_thread::sleep_for(chrono::seconds(30));
+		this_thread::sleep_for(chrono::seconds(30));
 		g_checkLocked = false;
 	}
+
+
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock( &g_criticalSection );
 
@@ -115,6 +121,37 @@ int main(int argc, char const *argv[]) {
 	// 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
 
 	return 0;
+}
+
+void statusObserver(list<NodeInfo*> *nodes) {
+	while(true) {
+		list<NodeInfo*>::iterator it;
+		list<ValueID>::iterator it2;
+		int32 wakeUpInterval;
+		int64 now = chrono::high_resolution_clock::now().time_since_epoch().count();
+		// time_t t_now = chrono::high_resolution_clock::to_time_t(now);
+
+		// cout << ".\n";
+		for (it = nodes->begin(); it != nodes->end(); it++) {
+			// cout << (*it)->m_name << ", ";
+			list<ValueID> valueIDs = (*it)->m_values;
+			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
+				// cout << (*it2).GetAsString() << endl;
+				string label = Manager::Get()->GetValueLabel(*it2);
+				if (label.find("Wake-up Interval") != string::npos) {
+					// cout << "Node " << to_string((*it)->m_nodeId) << " can sleep, time: ";
+					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval);
+					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
+						cout << "Node " << to_string((*it)->m_nodeId) << " looks like dead\n";
+					}
+					break;
+					// if ()
+				}
+			}
+		}
+
+		this_thread::sleep_for(chrono::milliseconds(500));
+	}
 }
 
 void onNotification(Notification const* notification, void* context) {
@@ -134,6 +171,12 @@ void onNotification(Notification const* notification, void* context) {
 	Driver::DriverData driver_data;
 	
 	if (containsType(notification->GetType(), Five::AliveNotification) || notification->GetNodeId() == 1) {
+		if (containsType(notification->GetType(), Five::AliveNotification) && g_menuLocked) {
+			thread t1(menu);
+			t1.detach();
+			g_menuLocked = false;
+		}
+
 		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
 			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
 			if (n->m_isDead) {
@@ -145,6 +188,7 @@ void onNotification(Notification const* notification, void* context) {
 					cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
 				}
 			}
+			n->m_sync = chrono::high_resolution_clock::now();
 		}
 	}
 
@@ -275,6 +319,7 @@ void onNotification(Notification const* notification, void* context) {
 			notifType = "DRIVER READY";
 			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
 			
+			
 			break;
 		case Notification::Type_DriverFailed:
 			notifType = "DRIVER FAILED";
@@ -367,6 +412,17 @@ void onNotification(Notification const* notification, void* context) {
 	pthread_mutex_unlock(&g_criticalSection); // unlock critical section
 }
 
+void watchState(uint32 homeID) {
+	Driver::ControllerState state = Manager::Get()->GetDriverState(homeID);
+	int counter{ 200 };
+	while (state != Driver::ControllerState::ControllerState_Completed && counter --> 0) {
+		state = Manager::Get()->GetDriverState(homeID);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cout << "State: " << state << "\n";
+	}
+	cout << "Completed\n";
+}
+
 void menu() {
 	bool menuRun(1);
 	
@@ -379,7 +435,7 @@ void menu() {
 		int stateInt(0);
 		int listchoice{ 0 };
 		// int x{ 3 };
-		int counter{ 100 };
+		int counter{ 30 };
 		int counterNode{0};
 		int counterValue{0};
 		list<NodeInfo*>::iterator it;
@@ -393,6 +449,7 @@ void menu() {
 		// }
 
 		cout << "\n>>──────|MENU|──────<<\n\n"
+			 << "[-1] Dev\n"
 			 << "[1] Add node\n"
 		  	 << "[2] Remove node\n"
 		 	 << "[3] Get value\n"
@@ -411,6 +468,8 @@ void menu() {
 		} catch(const std::exception& e) {
 			std::cerr << e.what() << '\n';
 		}
+		
+		int milliCounter{ 0 };
 
 		switch (choice) {
 			case 10:
@@ -424,8 +483,33 @@ void menu() {
 				cin >> response;
 				choice = stoi(response);
 				cout << Manager::Get()->IsNodeFailed(homeID, (unsigned int)choice) << endl;
-				break;10
+				break;
 
+			case -1:
+				cout << "\n>>────|DEV|────<<\n\n";
+				for (it = nodes->begin(); it != nodes->end(); it++) {
+					cout << "[" << to_string((*it)->m_nodeId) << "] " 
+						 << (*it)->m_name << "\n";
+				}
+				
+				cout << "\nSelect a node ('q' to exit): ";
+				cin >> response;
+				for (it = nodes->begin(); it != nodes->end(); it++) {
+					if (response == to_string((*it)->m_nodeId)) {
+						while (true) {
+							cout << "Is awake: ";
+							if (Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) {
+								cout << "1\n";
+								break;
+							}
+							cout << "elapsed: " << to_string(milliCounter) << "ms, 0\n"; 
+							this_thread::sleep_for(chrono::milliseconds(100));
+							milliCounter += 100;
+						}
+						break;
+					}
+				}
+				break;
 			case 9:
 				cout << "\n>>───|NETWORK|───<<\n\n"
 					 << "[1] Ping\n"
@@ -475,23 +559,36 @@ void menu() {
 					}
 					cout << "\nSelect a node ('q' to exit): ";
 					cin >> response;
-
+					cout << "\nNeighbor chain: ";
 					for (it = nodes->begin(); it != nodes->end(); it++) {
 						if (to_string((*it)->m_nodeId) == response) {
 							Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, bitmap);
-							// cout << to_string((*bitmap)[0]);
 							for (int i = 0; i < 29; i++) {
 								// for (j = 0; j < 8; j++) {
 								// 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
 								// }
-								// cout << '\n';
-								// cout << bitset<8>((*bitmap)[i]) << '\n';
 								cout << to_string((*bitmap)[i]);
 							}
-							cout << '\n';
+							cout << "\n\n"
+								<< "[1] Synchronize neighbors\n"
+								<< "[2] Request neighbor update\n "
+								<< "\nChoose ('q' to exit): ";
+							cin >> response;
+
+							if (response == "1") {
+								Manager::Get()->SyncronizeNodeNeighbors(homeID, (*it)->m_nodeId);
+								cout << "Done.\n";
+							} else if (response == "2") {
+								Manager::Get()->RequestNodeNeighborUpdate(homeID, (*it)->m_nodeId)
+									? cout << "Update request sent\n"
+									: cout << "Update request failed\n";
+								// while (stateInt != )
+							}
 							break;
 						}
 					}
+
+
 				} else if (response == "4") {
 					cout << "\n>>─────|POLLS|─────<<\n\n"
 						 << "/!\\ If you set the poll intensity, you must restart the ZWave key to add modification.\n\n"
@@ -562,6 +659,7 @@ void menu() {
 			break;
 		}
 		case 2:
+		{
 			Manager::Get()->RemoveNode(Five::homeID);
 
 			thread t3(nodeSwitch, stateInt, &lock);
@@ -569,12 +667,14 @@ void menu() {
 			stateInt = Manager::Get()->GetDriverState(Five::homeID);
 			
 			break;
+		}
 		case 3:
 			cout << "\n";
 			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++) {
 				cout << "[" << to_string((*it)->m_nodeId) << "] ";
 				(*it)->m_isDead ? cout << "❌ " : cout << "✅ ";
-				cout << (*it)->m_name << "\n";
+				cout << getTime(convertDateTime((*it)->m_sync)) << ", "
+					 << (*it)->m_name << "\n";
 			}
 
 			cout << "\nChoose ('q' to exit): ";
@@ -634,12 +734,19 @@ void menu() {
 							cout << Manager::Get()->GetValueLabel(*it2) << it2->GetAsString() << endl;
 							Manager::Get()->GetValueAsString((*it2), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
+							
 							cout << "Set to what ? ";
 							cin >> response;
+							int tempCounter{ 100 };
 							// int test = 0;
 							// int* testptr = &test;
 							//setUnit((*valueIt));
-							Manager::Get()->SetValue((*it2), response);
+							while (response != *ptr_container && tempCounter-->0) {
+								Manager::Get()->SetValue((*it2), response);
+								Manager::Get()->GetValueAsString((*it2), ptr_container);
+								this_thread::sleep_for(chrono::milliseconds(100));
+								cout << "send " << response << ", " << *ptr_container << "\n";
+							}
 							//Manager::Get()->GetValueAsInt((*valueIt), testptr);
 							//cout << *testptr;
 							break;
@@ -956,7 +1063,7 @@ void CheckFailedNode(string path){
 		this_thread::sleep_for(chrono::seconds(failedNodeInterval));
 
 		for(it = n.begin(); it != n.end(); it++){
-			cout << "in node for" << endl;
+			// cout << "in node for" << endl;
 			uint8 nodeId = (*it)->m_nodeId;
 			string line;
 			string nodeName = (*it)->m_name;
@@ -976,7 +1083,7 @@ void CheckFailedNode(string path){
 					file.close();			
 				}
 			}else if(!(Manager::Get()->IsNodeFailed(homeID, nodeId))){
-				cout << "node not failed" << "id: " << unsigned(nodeId) << endl;
+				// cout << "node not failed" << "id: " << unsigned(nodeId) << endl;
 				file.open(path, ios::in);
 				fstream temp;
 				temp.open("temp.txt", ios::app);
