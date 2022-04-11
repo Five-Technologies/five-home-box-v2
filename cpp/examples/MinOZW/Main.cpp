@@ -401,6 +401,7 @@ void menu() {
 		 	 << "[7] Heal\n"
 		 	 << "[8] Set value (new)\n"
 			 << "[9] Network\n"
+			 << "[10] Is Node Failed\n"
 			 << "\nChoose: ";
 		
 		cin >> response;
@@ -412,6 +413,19 @@ void menu() {
 		}
 
 		switch (choice) {
+			case 10:
+				cout << "Choose what node to check: " << endl;
+				for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
+				{
+					counterNode++;
+					cout << counterNode << ". " << (*it)->m_name << endl;
+				}
+
+				cin >> response;
+				choice = stoi(response);
+				cout << Manager::Get()->IsNodeFailed(homeID, (unsigned int)choice) << endl;
+				break;10
+
 			case 9:
 				cout << "\n>>───|NETWORK|───<<\n\n"
 					 << "[1] Ping\n"
@@ -549,6 +563,11 @@ void menu() {
 		}
 		case 2:
 			Manager::Get()->RemoveNode(Five::homeID);
+
+			thread t3(nodeSwitch, stateInt, &lock);
+			t3.detach();
+			stateInt = Manager::Get()->GetDriverState(Five::homeID);
+			
 			break;
 		case 3:
 			cout << "\n";
