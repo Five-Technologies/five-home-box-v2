@@ -32,7 +32,7 @@ tm* tm_start{ convertDateTime(start) };
 
 static uint8 *bitmap[29];
 
-static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume"};
+static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume", "Wake-up"};
 void onNotification(Notification const* notification, void* context);
 void menu();
 void nodeSwitch(int stateInt, int *lock);
@@ -100,8 +100,8 @@ int main(int argc, char const *argv[]) {
 	// 	g_menuLocked = false;
 	// }
 
-	thread t3(statusObserver, Five::nodes);
-	t3.detach();
+	//thread t3(statusObserver, Five::nodes);
+	//t3.detach();
 	
 	if (g_checkLocked){
 		thread t2(CheckFailedNode, FAILED_NODE_PATH);
@@ -125,6 +125,9 @@ int main(int argc, char const *argv[]) {
 
 void statusObserver(list<NodeInfo*> *nodes) {
 	while(true) {
+		bool isIn(0);
+		fstream file;
+		string line;
 		list<NodeInfo*>::iterator it;
 		list<ValueID>::iterator it2;
 		int32 wakeUpInterval;
@@ -143,6 +146,36 @@ void statusObserver(list<NodeInfo*> *nodes) {
 					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval);
 					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
 						cout << "Node " << to_string((*it)->m_nodeId) << " looks like dead\n";
+						file.open(FAILED_NODE_PATH, ios::in);
+						while(getline(file, line)){
+							if(line.find("Label: " + (*it)->m_name) != string::npos){
+								isIn = 1;
+							}
+						}
+						file.close();
+						if(!isIn){
+							file.open(FAILED_NODE_PATH, ios::app);
+							file << "Label: " << (*it)->m_name << " Id: " << unsigned((*it)->m_nodeId) << " Type: " << (*it)->m_nodeType << endl;
+							file.close();			
+						}
+					}else {
+						file.open(FAILED_NODE_PATH, ios::in);
+						fstream temp;
+						temp.open("temp.txt", ios::app);
+						while(getline(file, line)){
+							cout << line << endl;
+							string s = "Label: " + (*it)->m_name;
+							cout << s << endl;
+							if(line.find(s) == string::npos){
+								temp << line;
+							}
+						}
+						temp.close();
+						file.close();
+
+						const char *p = FAILED_NODE_PATH.c_str();
+						remove(p);
+						rename("temp.txt", p);
 					}
 					break;
 					// if ()
@@ -171,7 +204,7 @@ void onNotification(Notification const* notification, void* context) {
 	Driver::DriverData driver_data;
 	
 	if (containsType(notification->GetType(), Five::AliveNotification) || notification->GetNodeId() == 1) {
-		if (containsType(notification->GetType(), Five::AliveNotification) && g_menuLocked) {
+		if (g_menuLocked) {
 			thread t1(menu);
 			t1.detach();
 			g_menuLocked = false;
@@ -474,6 +507,8 @@ void menu() {
 		switch (choice) {
 			case 10:
 				cout << "Choose what node to check: " << endl;
+
+				//Printing node names and receiving user's choice
 				for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 				{
 					counterNode++;
@@ -535,7 +570,7 @@ void menu() {
 							for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
 								if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
 									cout << "Ping sent...\n";
-									int counter{ 500 };
+									int counter{ 60 };
 									while (counter --> 0) {
 										Manager::Get()->RefreshValue(*it2);
 										
@@ -649,9 +684,10 @@ void menu() {
 				break;
 		case 1:
 		{
+			//Putting the driver into a listening state
 			Manager::Get()->AddNode(Five::homeID, false);
 
-			
+			//Printing progression messages
 			thread t3(nodeSwitch, stateInt, &lock);
 			t3.detach();
 			stateInt = Manager::Get()->GetDriverState(Five::homeID);
@@ -660,8 +696,10 @@ void menu() {
 		}
 		case 2:
 		{
+			//Putting the driver into a listening state
 			Manager::Get()->RemoveNode(Five::homeID);
 
+			//Printing progression messages
 			thread t3(nodeSwitch, stateInt, &lock);
 			t3.detach();
 			stateInt = Manager::Get()->GetDriverState(Five::homeID);
@@ -669,45 +707,31 @@ void menu() {
 			break;
 		}
 		case 3:
-			cout << "\n";
-			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++) {
-				cout << "[" << to_string((*it)->m_nodeId) << "] ";
-				(*it)->m_isDead ? cout << "❌ " : cout << "✅ ";
-				cout << getTime(convertDateTime((*it)->m_sync)) << ", "
-					 << (*it)->m_name << "\n";
-			}
+			//Printing node names and receiving user's choice
+			nodeChoice(&choice, it);
 
-			cout << "\nChoose ('q' to exit): ";
-			cin >> response;
-			
-			for(it =nodes->begin(); it != nodes->end(); it++){
-				if (response == to_string((*it)->m_nodeId)) {
-					cout << "\n>>────|VALUES OF THE NODE " << to_string((*it)->m_nodeId) << "|────<<\n\n";
-					for(it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
-						Manager::Get()->GetValueAsString((*it2), ptr_container);
-						cout << "[" << counterValue++ << "] " << Manager::Get()->GetValueLabel(*it2) << " : " << *ptr_container << endl;
-					}
-				}
+			if(choice == -1){ //Impossible value except if user chooses to quit
+				break;
 			}
+			
+			//Printing all the node's values with name, id and ReadOnly state
+			printValues(&choice, it, it2, true);	
 			break;
 		case 4:
-			cout << "Choose what node you want to set a value from: " << endl;
-			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
-			{
-				counterNode++;
-				cout << counterNode << ". " << (*it)->m_name << endl;
+			//Printing node names and receiving user's choice
+
+			nodeChoice(&choice, it);
+			
+			if(choice == -1){ //Impossible value except if user chooses to quit
+				break;
 			}
+			//counterNode = 0;
 
-			cout << "\nChoose what node you want a value from: " << endl;
-
-			cin >> response;
-			choice = stoi(response);
-			counterNode = 0;
-			cout << "Choose the value to set: " << endl;
+			//Printing value names and receiving user's choice
 			for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
 			{
 				counterNode++;
-				if (counterNode == choice)
+				if ((*it)->m_nodeId == choice)
 				{
 					for(it2 = (*it) -> m_values.begin(); it2 != (*it) -> m_values.end(); it2++)
 					{
@@ -731,16 +755,21 @@ void menu() {
 						}
 						
 						if (choice == counterValue) {
+
+							//Printing the current value
 							cout << Manager::Get()->GetValueLabel(*it2) << it2->GetAsString() << endl;
 							Manager::Get()->GetValueAsString((*it2), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
 							
+							//Asking the user to set the wanted value
 							cout << "Set to what ? ";
 							cin >> response;
 							int tempCounter{ 100 };
 							// int test = 0;
 							// int* testptr = &test;
 							//setUnit((*valueIt));
+
+							//Sending the value until current value is identical, or until timeout (for sleeping nodes)
 							while (response != *ptr_container && tempCounter-->0) {
 								Manager::Get()->SetValue((*it2), response);
 								Manager::Get()->GetValueAsString((*it2), ptr_container);
@@ -795,13 +824,10 @@ void menu() {
 		case 6:
 			break;
 		case 7:
-			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++){
-				cout << unsigned((*it)->m_nodeId) << ". " << (*it)->m_name << endl;
-			}
-			cout << "Which node do you want to heal ?";
-			cin >> response;
-			choice = stoi(response);
+			//Printing node names and receiving user's choice
+			nodeChoice(&choice, it);
 
+			//Ask the node to recheck his neighboors 
 			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++){
 				if ((*it)->m_nodeId == choice){
 					Manager::Get()->HealNetworkNode((*it)->m_homeId, (*it)->m_nodeId, true);
@@ -809,32 +835,21 @@ void menu() {
 			}
 			break;
 		case 8:
-			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++)
-			{
-				cout << unsigned((*it)->m_nodeId) << ". " << (*it)->m_name << endl;
+			//Printing node names and receiving user's choice
+			nodeChoice(&choice, it);
+			//counterNode = 0;
+			if(choice == -1){ //Impossible value except if user chooses to quit
+				break;
 			}
 
-			cout << "\nSelect a node ('q' to exit): ";
-			cin >> response;
-			choice = stoi(response);
-			//counterNode = 0;
-			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++) {
-				if ((*it)->m_nodeId == choice) {
-					for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
-						if ((ValueID::ValueType_List == (*it2).GetType() || ValueID::ValueType_Button == (*it2).GetType()) && !Manager::Get()->IsValueReadOnly(*it2)) {
-							cout << "[" << ++counterValue << "] " << Manager::Get()->GetValueLabel((*it2)) << endl;
-						} else for(sIt = g_setTypes.begin(); sIt != g_setTypes.end(); ++sIt) {
-							if (Manager::Get()->GetValueLabel((*it2)).find((*sIt)) != string::npos && !Manager::Get()->IsValueReadOnly(*it2)) {
-								cout << "[" << ++counterValue << "] " << Manager::Get()->GetValueLabel((*it2)) << endl;
-							}
-						}
-					}
-					break;
-				}
+			//Printing value names and receiving user's choice
+			printValues(&choice, it, it2, false);
+
+			if(choice == -1){ //Impossible value except if user chooses to quit
+				break;
 			}
-			cin >> response;
-			choice = stoi(response);
-			counterValue = 0;
+
+			//Calling appropriate method depending on user's choice
 			for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++)
 			{
 				if (ValueID::ValueType_Button == (*it2).GetType() && !Manager::Get()->IsValueReadOnly(*it2))
@@ -1025,25 +1040,26 @@ void menu() {
 	}
 }
 
+//Function printing progression messages during Add Node and Remove Node
 void nodeSwitch(int stateInt, int *lock){
 	int counter(500);
 	while (counter --> 0) {
 		switch (stateInt){
 			case 1:
 				if(*lock != stateInt){
-				cout << "LISTENING FOR NODE: STARTING" << endl;
+				cout << "STARTING" << endl;
 				}
 				*lock = 1;
 				break;
 			case 4:
 				if(*lock != stateInt){
-				cout << "WAITING FOR NODE..." << endl;
+				cout << "WAITING" << endl;
 				}
 				*lock = 4;
 				break;
 			case 7:
 				if(*lock != stateInt){
-				cout << "NODE HAS BEEN ADDED: COMPLETED" << endl;
+				cout << "COMPLETED" << endl;
 				}
 				*lock = 7;
 				break;
@@ -1055,6 +1071,7 @@ void nodeSwitch(int stateInt, int *lock){
 	cout << "Done" << endl;
 }
 
+//Function looping in the background to check if nodes are failed
 void CheckFailedNode(string path){
 	while(true){
 		list<NodeInfo*>::iterator it;

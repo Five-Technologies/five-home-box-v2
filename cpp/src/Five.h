@@ -41,14 +41,14 @@ namespace Five
 
     list<NodeInfo*> n{};
     list<NodeInfo*>* nodes = &n;
-    const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume" };
+    const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume", "Wake-up" };
     const string CACHE_PATH{ "cpp/examples/cache/" };
     const string NODE_LOG_PATH{ CACHE_PATH + "nodes/" };
     const string FAILED_NODE_PATH{ CACHE_PATH + "failed_nodes.log" };
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
     const string PORT{ "/dev/ttyACM0" };
-    const int failedNodeInterval{ 20 }; // in seconds
+    const int failedNodeInterval{ 300 }; // in seconds
     uint32 homeID{ 0 };
     const int NEIGHBOR_BITMAP_LENGTH{ 29 };
     logLevel LEVEL;
@@ -73,6 +73,8 @@ namespace Five
     int aliveNodeSum(list<NodeInfo*> *nodes);
     void refreshNode(ValueID valueID, NodeInfo *oldNodeInfo);
     bool containsNodeID(uint8 needle, list<NodeInfo*> haystack);
+
+    bool nodeChoice(int* choice, list<NodeInfo*>::iterator it);
     
     void pushNode(Notification const *notification, list<NodeInfo*> *nodes);
     void removeNode(Notification const *notification, list<NodeInfo*> *nodes);
@@ -93,6 +95,7 @@ namespace Five
     
     bool removeValue(ValueID valueID);
     bool addValue(ValueID valueID, NodeInfo *node);
+    bool printValues(int* choice, list<NodeInfo*>::iterator it, list<ValueID>::iterator it2, bool getOnly);
 
     //File methods
     

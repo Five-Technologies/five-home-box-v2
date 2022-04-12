@@ -169,7 +169,7 @@ bool Five::setInt(ValueID valueId){
     string response;
     cout << "Please enter a value in Int:" << endl;
     cin >> response;
-    Manager::Get()->SetValue(valueId, response);
+    Manager::Get()->SetValue(valueId, stoi(response));
     return true;
 }
 
@@ -400,4 +400,65 @@ void Five::stoc(string chain, char* output) {
     for (int i = 0; i < int(chain.length()); i++) {
         output[i] = chain[i];
     }
+}
+
+bool Five::nodeChoice(int* choice, list<NodeInfo*>::iterator it){
+    string response;
+    cout << "\n";
+        for(it =Five::nodes->begin(); it !=Five::nodes->end(); it++) {
+            cout << "[" << to_string((*it)->m_nodeId) << "] ";
+            (*it)->m_isDead ? cout << "❌ " : cout << "✅ ";
+            cout << getTime(convertDateTime((*it)->m_sync)) << ", "
+                    << (*it)->m_name << "\n";
+        }
+
+        cout << "\nChoose ('q' to exit): ";
+        cin >> response;
+        if(response == "q"){
+            *choice = -1 ;
+            return true;
+        }
+        *choice = stoi(response);
+        return true;
+}
+
+bool Five::printValues(int* choice, list<NodeInfo*>::iterator it, list<ValueID>::iterator it2, bool getOnly){
+    string container;
+    string* ptr_container = &container;
+    list<string>::const_iterator sIt;
+    string response;
+    int counterValue(0);
+    for(it = nodes->begin(); it != nodes->end(); it++){
+        if (*choice == ((*it)->m_nodeId)) {
+            if(getOnly){
+                cout << "\n>>────|VALUES OF THE NODE " << to_string((*it)->m_nodeId) << "|────<<\n\n";
+                for(it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+                    Manager::Get()->GetValueAsString((*it2), ptr_container);
+                    cout << "[" << counterValue++ << "] " << Manager::Get()->GetValueLabel(*it2) << " : " << *ptr_container << " Read Only: " 
+                    << Manager::Get()->IsValueReadOnly(*it2) << endl;
+                    return true;
+                }
+            }else{
+                for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+                    if ((ValueID::ValueType_List == (*it2).GetType() || ValueID::ValueType_Button == (*it2).GetType()) && !Manager::Get()->IsValueReadOnly(*it2)) {
+                        cout << "[" << ++counterValue << "] " << Manager::Get()->GetValueLabel((*it2)) << endl;
+                    } else for(sIt = TYPES.begin(); sIt != TYPES.end(); ++sIt) {
+                        if ((Manager::Get()->GetValueLabel((*it2)).find((*sIt)) != string::npos) && !Manager::Get()->IsValueReadOnly(*it2)) {
+                            cout << "[" << ++counterValue << "] " << Manager::Get()->GetValueLabel((*it2)) << endl;
+                        }
+                    }
+                }
+                cout << "\nSelect a value ('q' to exit): ";
+                cin >> response;
+                if(response == "q"){
+                    *choice = -1;
+                    return true;
+                }
+                *choice = stoi(response);
+                return true;
+            }
+            break;
+        }
+    }
+    return true;
 }
