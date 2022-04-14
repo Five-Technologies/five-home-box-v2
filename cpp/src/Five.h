@@ -95,7 +95,8 @@ namespace Five
     
     bool removeValue(ValueID valueID);
     bool addValue(ValueID valueID, NodeInfo *node);
-    bool printValues(int* choice, list<NodeInfo*>::iterator it, list<ValueID>::iterator it2, bool getOnly);
+    bool printValues(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>::iterator it2, bool getOnly);
+    bool newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>::iterator it2, bool isOk);
 
     //File methods
     
