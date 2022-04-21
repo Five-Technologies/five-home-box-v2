@@ -955,7 +955,7 @@ void Driver::SendMsg(Internal::Msg* _msg, MsgQueue const _queue)
 	{
 		Internal::LockGuard LG(m_nodeMutex);
 		if (Node* node = GetNode(_msg->GetTargetNodeId()))
-		{
+		{ 
 			/* if the node Supports the Security Class - check if this message is meant to be encapsulated */
 			if (node->GetCommandClass(Internal::CC::Security::StaticGetCommandClassId()))
 			{

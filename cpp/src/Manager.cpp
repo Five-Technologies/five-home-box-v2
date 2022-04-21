@@ -142,9 +142,7 @@ ozwversion Manager::getVersion()
 // <Manager::Manager>
 // Constructor
 //-----------------------------------------------------------------------------
-Manager::Manager() :
-		m_notificationMutex(new Internal::Platform::Mutex())
-{
+Manager::Manager() : m_notificationMutex(new Internal::Platform::Mutex()) {
 	// Ensure the singleton instance is set
 	s_instance = this;
 

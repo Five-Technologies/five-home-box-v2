@@ -4,10 +4,16 @@
 #include "Manager.h"
 #include "Notification.h"
 #include <chrono>
+#include <netinet/in.h>
 using namespace OpenZWave;
 
-namespace Five
-{
+
+namespace Five {
+
+    const int ZWAVE_PORT = 5101;
+    const int PHP_PORT = 5100;
+    const char *LOCAL_ADDRESS = "127.0.0.1";
+    
     struct NodeInfo {
         uint32             m_homeId;
         uint8              m_nodeId;
@@ -20,7 +26,8 @@ namespace Five
 
     const vector<Notification::NotificationType> AliveNotification{
         Notification::Type_ValueChanged,
-	    Notification::Type_ValueRefreshed
+	    Notification::Type_ValueRefreshed,
+        Notification::Type_AllNodesQueried
     };
 
     enum IntensityScale {
@@ -48,10 +55,23 @@ namespace Five
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
     const string PORT{ "/dev/ttyACM0" };
-    const int failedNodeInterval{ 20 }; // in seconds
-    uint32 homeID{ 0 };
-    const int NEIGHBOR_BITMAP_LENGTH{ 29 };
+    const int failedNodeInterval{ 20 }; // Seconds
+    uint32 homeID{ 0 }; // Hexadecimal
+    const int NEIGHBOR_BITMAP_LENGTH{ 29 }; // Bits
+    const int OBSERVER_PERIOD{ 50 }; // Milliseconds
+    const int STATE_PERIOD{ 100 }; // Milliseconds
+    const int LOOP_TIMEOUT{ 100 }; // Loop counter
     logLevel LEVEL;
+    Driver::ControllerState driverState;
+
+    const string STATES[]{
+        "Normal", "Starting",
+        "Cancel", "Error",
+        "Waiting", "Sleeping",
+        "InProgress", "Completed",
+        "Failed", "NodeOK",
+        "NodeFailed"
+    };
 
     // Config method
     
@@ -114,6 +134,13 @@ namespace Five
     string getTime(tm *datetime);
     string getDate(tm *datetime);
     double difference(chrono::high_resolution_clock::time_point datetime01, chrono::high_resolution_clock::time_point datetime02);
+
+    // Server
+
+    string convertToString(char* a, int size);
+    int sendMsg(const char* address, const int port, string message);
+    string receiveMsg(sockaddr_in address, int server_fd);
+    void server(int port);
 }
 
 #endif

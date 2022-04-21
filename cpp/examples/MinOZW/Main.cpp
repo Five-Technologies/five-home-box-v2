@@ -43,8 +43,8 @@ int main(int argc, char const *argv[]) {
 	string response{ "3" };
 	cout << "Start process..." << endl;
 
-	
-	
+
+
 	// cout << ">>──── LOG LEVEL ────<<\n\n"
 	// 	 << "     0. NONE\n"
 	// 	 << "     1. WARNING\n"
@@ -81,10 +81,35 @@ int main(int argc, char const *argv[]) {
 
 	pthread_mutexattr_t mutexattr;
 
-	pthread_mutexattr_init ( &mutexattr );
+	// Initialize the mutex ATTRIBUTES with the default value.
+	pthread_mutexattr_init( &mutexattr );
+
+	/* PTHREAD_MUTEX_NORMAL: it does not detect dead lock.
+	   - If you want lock a locked mutex, you will get a deadlock mutex.
+	   - If you want unlock an unlocked mutex, you will get an undefined behavior.
+
+	   PTHREAD_MUTEX_ERRORCHECK: it returns an error if you you want lock a locked mutex or unlock an unlocked mutex.
+
+	   PTHREAD_MUTEX_RECURSIVE:
+	   - If you want lock a locked mutex, it stays at locked state an returns a success.
+	   - If you want unlock an unlocked mutex, it stays at unlocked state an returns a success.
+
+	   PTHREAD_MUTEX_DEFAULT: if you lock a locked mutex or unlock an unlocked mutex, you will get an undefined behavior.
+	*/
 	pthread_mutexattr_settype( &mutexattr, PTHREAD_MUTEX_RECURSIVE );
+
+	/* Initialize the mutex referenced by mutex with attributes specified by attr.
+	   If the attribute is NULL, the default mutex attributes are used.
+	   Upon initialization is successful, the mutex becomes INITIALIZED and UNLOCKED.
+
+	   /!\ Initialization the same mutex twice will get an undefined behavior. /!\
+	*/
 	pthread_mutex_init( &g_criticalSection, &mutexattr );
+
+	// You only can use the mutex ATTR one time, it does not affect any other mutexes and you should detroy it to uninitialize it.
 	pthread_mutexattr_destroy( &mutexattr );
+
+
 	pthread_mutex_lock( &initMutex );
 
 	Options::Create(CONFIG_PATH, CACHE_PATH, "");
@@ -93,16 +118,12 @@ int main(int argc, char const *argv[]) {
 	Manager::Get()->AddWatcher(onNotification, NULL);
 	Manager::Get()->AddDriver(PORT);
 
+	thread t3(statusObserver, Five::nodes);
+	t3.detach();
 
-	// if (g_menuLocked) {
-	// 	thread t1(menu);
-	// 	t1.detach();
-	// 	g_menuLocked = false;
-	// }
+	thread t4(Five::server, ZWAVE_PORT);
+	t4.detach();
 
-	//thread t3(statusObserver, Five::nodes);
-	//t3.detach();
-	
 	if (g_checkLocked){
 		thread t2(CheckFailedNode, FAILED_NODE_PATH);
 		t2.detach();
@@ -110,9 +131,7 @@ int main(int argc, char const *argv[]) {
 		g_checkLocked = false;
 	}
 
-
 	pthread_cond_wait(&initCond, &initMutex);
-	pthread_mutex_unlock( &g_criticalSection );
 
 	// 	Driver::DriverData data;
 	// 	Manager::Get()->GetDriverStatistics( Five::homeID, &data );
@@ -120,70 +139,86 @@ int main(int argc, char const *argv[]) {
 	// 	printf("Reads: %d Writes: %d CAN: %d NAK: %d ACK: %d Out of Frame: %d\n", data.m_readCnt, data.m_writeCnt, data.m_CANCnt, data.m_NAKCnt, data.m_ACKCnt, data.m_OOFCnt);
 	// 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
 
+	pthread_mutex_unlock( &g_criticalSection );
 	return 0;
 }
 
+
 void statusObserver(list<NodeInfo*> *nodes) {
 	while(true) {
-		bool isIn(0);
 		fstream file;
 		string line;
 		list<NodeInfo*>::iterator it;
 		list<ValueID>::iterator it2;
 		int32 wakeUpInterval;
+
+		// Get the current counter from epoch.
 		int64 now = chrono::high_resolution_clock::now().time_since_epoch().count();
-		// time_t t_now = chrono::high_resolution_clock::to_time_t(now);
 
-		// cout << ".\n";
+
+		Driver::ControllerState newState( Driver::ControllerState::ControllerState_Error );
+
+		if (homeID != 0)
+			newState = Manager::Get()->GetDriverState(homeID);
+
+		if (driverState != newState) {
+			cout << "State: " << STATES[newState] << "\n";
+			driverState = newState;
+		}
+
 		for (it = nodes->begin(); it != nodes->end(); it++) {
-			// cout << (*it)->m_name << ", ";
 			list<ValueID> valueIDs = (*it)->m_values;
-			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
-				// cout << (*it2).GetAsString() << endl;
-				string label = Manager::Get()->GetValueLabel(*it2);
-				if (label.find("Wake-up Interval") != string::npos) {
-					// cout << "Node " << to_string((*it)->m_nodeId) << " can sleep, time: ";
-					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval);
-					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
-						cout << "Node " << to_string((*it)->m_nodeId) << " looks like dead\n";
-						file.open(FAILED_NODE_PATH, ios::in);
-						while(getline(file, line)){
-							if(line.find("Label: " + (*it)->m_name) != string::npos){
-								isIn = 1;
-							}
-						}
-						file.close();
-						if(!isIn){
-							file.open(FAILED_NODE_PATH, ios::app);
-							file << "Label: " << (*it)->m_name << " Id: " << unsigned((*it)->m_nodeId) << " Type: " << (*it)->m_nodeType << endl;
-							file.close();			
-						}
-					}else {
-						file.open(FAILED_NODE_PATH, ios::in);
-						fstream temp;
-						temp.open("temp.txt", ios::app);
-						while(getline(file, line)){
-							cout << line << endl;
-							string s = "Label: " + (*it)->m_name;
-							cout << s << endl;
-							if(line.find(s) == string::npos){
-								temp << line;
-							}
-						}
-						temp.close();
-						file.close();
 
-						const char *p = FAILED_NODE_PATH.c_str();
-						remove(p);
-						rename("temp.txt", p);
+			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
+				string label = Manager::Get()->GetValueLabel(*it2);
+
+				if (label.find("Wake-up Interval") != string::npos) { // The object has a sleep interval.
+					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval); // Stores the object wakeUpInteral value.
+
+					// Check if (now - lastUpdate) is greater than the wakeUpInterval
+					// or if the object is not synchronized yet.
+					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
+						(*it)->m_isDead = true;
+
+						// file.open(FAILED_NODE_PATH, ios::in);
+						// while(getline(file, line)){
+						// 	if(line.find("Label: " + (*it)->m_name) != string::npos){
+						// 		isIn = 1;
+						// 	}
+						// }
+						// file.close();
+						// if(!isIn){
+						// 	file.open(FAILED_NODE_PATH, ios::app);
+						// 	file << "Label: " << (*it)->m_name << " Id: " << unsigned((*it)->m_nodeId) << " Type: " << (*it)->m_nodeType << endl;
+						// 	file.close();
+						// }
+					}else {
+						(*it)->m_isDead = false;
+
+						// file.open(FAILED_NODE_PATH, ios::in);
+						// fstream temp;
+						// temp.open("temp.txt", ios::app);
+						// while(getline(file, line)){
+						// 	cout << line << endl;
+						// 	string s = "Label: " + (*it)->m_name;
+						// 	cout << s << endl;
+						// 	if(line.find(s) == string::npos){
+						// 		temp << line;
+						// 	}
+						// }
+						// temp.close();
+						// file.close();
+
+						// const char *p = FAILED_NODE_PATH.c_str();
+						// remove(p);
+						// rename("temp.txt", p);
 					}
 					break;
-					// if ()
 				}
 			}
 		}
 
-		this_thread::sleep_for(chrono::milliseconds(500));
+		this_thread::sleep_for(chrono::milliseconds(Five::OBSERVER_PERIOD));
 	}
 }
 
@@ -199,33 +234,17 @@ void onNotification(Notification const* notification, void* context) {
 	string notifType{ "" };
 	string log{ "" };
 
+	if (notification->GetType() == Notification::Type_ValueChanged || notification->GetType() == Notification::Type_ValueRefreshed) {
+		cout << "Send message...";
+		thread ttemp(sendMsg, LOCAL_ADDRESS, PHP_PORT, "notification!");
+		ttemp.join();
+	}
+
 	Node::NodeData nodeData;
 	Node::NodeData* ptr_nodeData = &nodeData;
 	Driver::DriverData driver_data;
-	
-	if (containsType(notification->GetType(), Five::AliveNotification) || notification->GetNodeId() == 1) {
-		if (containsType(notification->GetType(), Five::AliveNotification) && g_menuLocked) {
-			thread t1(menu);
-			t1.detach();
-			g_menuLocked = false;
-		}
 
-		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
-			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
-			if (n->m_isDead) {
-				n->m_isDead = false;
-				if (LEVEL != logLevel::NONE) {
-					cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
-					cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
-					cout << "   - alive: " << aliveNodeSum(nodes) << endl;
-					cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
-				}
-			}
-			n->m_sync = chrono::high_resolution_clock::now();
-		}
-	}
-
-	pthread_mutex_lock(&g_criticalSection); // lock critical section
+	pthread_mutex_lock(&g_criticalSection); // Lock the critical section
 	// uint8 neighborNodeID;
 	// uint8 *ptr_neighborNodeID = &neighborNodeID;
 
@@ -246,7 +265,7 @@ void onNotification(Notification const* notification, void* context) {
 			}
 
 			log += "[VALUE_ADDED]	                  node " + to_string(notification->GetNodeId()) + ", value " + to_string(valueID.GetId()) + '\n';
-			
+
 			notifType = "VALUE ADDED";
 			addValue(valueID, getNode(notification->GetNodeId(), Five::nodes));
 			break;
@@ -254,7 +273,7 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[VALUE_REMOVED]                   node "
 			    + to_string(notification->GetNodeId()) + " value "
 				+ to_string(valueID.GetId()) + '\n';
-			
+
 			notifType = "VALUE REMOVED";
 			removeValue(valueID);
 			break;
@@ -263,12 +282,12 @@ void onNotification(Notification const* notification, void* context) {
 			Manager::Get()->GetNodeStatistics(valueID.GetHomeId(), valueID.GetNodeId(), ptr_nodeData);
 			// cout << "Hello" << endl;
 			// cout << "current state: " << Manager::Get()->GetDriverState(notification->GetHomeId()) << endl;
-			
+
 			log += "[VALUE_CHANGED]                   node "
-			    + to_string(valueID.GetNodeId()) + ", " 
-				+ Manager::Get()->GetValueLabel(valueID) + ": " 
+			    + to_string(valueID.GetNodeId()) + ", "
+				+ Manager::Get()->GetValueLabel(valueID) + ": "
 				+ *ptr_container + '\n';
-						
+
 			notifType = "VALUE CHANGED";
 			// Manager::Get()->SyncronizeNodeNeighbors(valueID.GetHomeId(), valueID.GetNodeId());
 			// cout << "pointer: " << (*ptr_nodeData).m_routeScheme << endl;
@@ -283,7 +302,7 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[VALUE_REFRESHED]                 node " + to_string(valueID.GetNodeId()) + ", "
 			     + Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + "\n";
 				//  + ", neigbors: " + to_string(Manager::Get()->GetNodeNeighbors(valueID.GetHomeId(), 1, bitmap)) + '\n';
-			
+
 			notifType = "VALUE REFRESHED";
 
 			// for (int i = 0; i < 29; i++) {
@@ -295,7 +314,7 @@ void onNotification(Notification const* notification, void* context) {
 			// 	cout << to_string((*bitmap)[i]);
 			// }
 			// cout << '\n';
-			
+
 			break;
 		case Notification::Type_Group:
 			notifType = "GROUP";
@@ -305,14 +324,14 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_NodeAdded:
 			log += "[NODE_ADDED]                      node " + to_string(notification->GetNodeId()) + '\n';
-			
+
 			notifType = "NODE ADDED";
 			pushNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeRemoved:
 			log += "[NODE_REMOVED]                    node " + to_string(notification->GetNodeId()) + '\n';
 			notifType = "NODE REMOVED";
-			
+
 			removeFile(path);
 			removeNode(notification, Five::nodes);
 			break;
@@ -351,8 +370,8 @@ void onNotification(Notification const* notification, void* context) {
 			log += "[DRIVER_READY]                    driver READY\n" + getDriverData(notification->GetHomeId()) + '\n';
 			notifType = "DRIVER READY";
 			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
-			
-			
+
+
 			break;
 		case Notification::Type_DriverFailed:
 			notifType = "DRIVER FAILED";
@@ -378,7 +397,7 @@ void onNotification(Notification const* notification, void* context) {
 			     + "   - alive: " + to_string(aliveNodeSum(nodes)) + '\n'
 			     + "   - dead : " + to_string(deadNodeSum(nodes)) + '\n'
 			     + "   - start: " + getTime(convertDateTime(start))
-			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';			
+			     + "   - elapse: " + to_string(difference(getCurrentDatetime(), start)) + "s\n" + '\n';
 			notifType = "ALL NODES QUERIED SOME DEAD";
 			break;
 		case Notification::Type_AllNodesQueried:
@@ -431,34 +450,85 @@ void onNotification(Notification const* notification, void* context) {
 
 	// cout << ">> " << notifType << endl;
 	// cout << log;
-	
+
+	if (containsType(notification->GetType(), Five::AliveNotification) || notification->GetNodeId() == 1) {
+		if ((containsType(notification->GetType(), Five::AliveNotification) || (nodes->size() == 1 && notification->GetType() == Notification::Type_AllNodesQueried)) && g_menuLocked) {
+			thread t1(menu);
+			t1.detach();
+			g_menuLocked = false;
+		}
+
+		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
+			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
+			if (n->m_isDead) {
+				n->m_isDead = false;
+				if (LEVEL != logLevel::NONE && n->m_nodeId != 1) {
+					cout << "\n\n⭐ [NEW_NODE_APPEARS]             node " << to_string(valueID.GetNodeId()) << endl;
+					cout << "   - total: " << aliveNodeSum(nodes) + deadNodeSum(nodes) << endl;
+					cout << "   - alive: " << aliveNodeSum(nodes) << endl;
+					cout << "   - dead : " << deadNodeSum(nodes) << "\n\n" << endl;
+				}
+			}
+			n->m_sync = chrono::high_resolution_clock::now();
+		}
+	}
+
 	if (notification->GetType() != Notification::Type_NodeRemoved) {
 		myfile.open(path, ios::app);
 
-		myfile << "[" << getDate(convertDateTime(getCurrentDatetime())) << ", "<< getTime(convertDateTime(getCurrentDatetime())) << "] " 
-			<< notifType << ", " << cc_name << " --> " 
+		myfile << "[" << getDate(convertDateTime(getCurrentDatetime())) << ", "<< getTime(convertDateTime(getCurrentDatetime())) << "] "
+			<< notifType << ", " << cc_name << " --> "
 			<< to_string(valueID.GetIndex()) << "(" << valueLabel << ")\n";
 
 		myfile.close();
 	}
 
-	pthread_mutex_unlock(&g_criticalSection); // unlock critical section
+	pthread_mutex_unlock(&g_criticalSection); // Unlock the critical section.
 }
 
-void watchState(uint32 homeID) {
-	Driver::ControllerState state = Manager::Get()->GetDriverState(homeID);
-	int counter{ 200 };
-	while (state != Driver::ControllerState::ControllerState_Completed && counter --> 0) {
-		state = Manager::Get()->GetDriverState(homeID);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cout << "State: " << state << "\n";
+void watchState(uint32 homeID, int loopTimeOut) {
+	Driver::ControllerState referenceState{ Manager::Get()->GetDriverState(homeID) };
+	Driver::ControllerState currentState{ Manager::Get()->GetDriverState(homeID) };
+
+	while (loopTimeOut --> 0) {
+		bool outOfRange{ referenceState <= 0 };
+
+		if (!outOfRange)
+			outOfRange = referenceState > STATES->size();
+
+		if (!outOfRange)
+			outOfRange = currentState <= 0;
+
+		if (!outOfRange)
+			outOfRange = currentState > STATES->size();
+
+		cout << "State: " << Five::STATES[currentState] << "\n";
+
+		switch (currentState) {
+			case Driver::ControllerState::ControllerState_Completed:
+				cout << "Final state: " << STATES[currentState] << "\n";
+				return;
+			// case Driver::ControllerState::ControllerState_Error:
+			// 	cout << "Final state: " << STATES[currentState] << "\n";
+			// 	return;
+			default:
+				if (referenceState != currentState) {
+					referenceState = currentState;
+				}
+
+				break;
+		}
+
+		currentState = Manager::Get()->GetDriverState(homeID);
+
+		this_thread::sleep_for(chrono::milliseconds(Five::STATE_PERIOD));
 	}
-	cout << "Completed\n";
+	cout << "TimeOut\n";
 }
 
 void menu() {
 	bool menuRun(1);
-	
+
 	while(menuRun){
 		string response;
 		bool isOk = false;
@@ -466,9 +536,6 @@ void menu() {
 		int choice{ 0 };
 		int lock(0);
 		int stateInt(0);
-		int listchoice{ 0 };
-		// int x{ 3 };
-		int counter{ 30 };
 		int counterNode{0};
 		int counterValue{0};
 		list<NodeInfo*>::iterator it;
@@ -476,7 +543,7 @@ void menu() {
 		string container;
 		string* ptr_container = &container;
 		string fileName{ "" };
-		
+
 		// while (x --> 0) {
 		// 	this_thread::sleep_for(chrono::seconds(1));
 		// }
@@ -493,7 +560,7 @@ void menu() {
 			 << "[9] Network\n"
 			 << "[10] Is Node Failed\n"
 			 << "\nChoose: ";
-		
+
 		cin >> response;
 
 		try {
@@ -501,7 +568,7 @@ void menu() {
 		} catch(const std::exception& e) {
 			std::cerr << e.what() << '\n';
 		}
-		
+
 		int milliCounter{ 0 };
 
 		switch (choice) {
@@ -528,10 +595,10 @@ void menu() {
 			case -1:
 				cout << "\n>>────|DEV|────<<\n\n";
 				for (it = nodes->begin(); it != nodes->end(); it++) {
-					cout << "[" << to_string((*it)->m_nodeId) << "] " 
+					cout << "[" << to_string((*it)->m_nodeId) << "] "
 						 << (*it)->m_name << "\n";
 				}
-				
+
 				cout << "\nSelect a node ('q' to exit): ";
 				cin >> response;
 				for (it = nodes->begin(); it != nodes->end(); it++) {
@@ -542,7 +609,7 @@ void menu() {
 								cout << "1\n";
 								break;
 							}
-							cout << "elapsed: " << to_string(milliCounter) << "ms, 0\n"; 
+							cout << "elapsed: " << to_string(milliCounter) << "ms, 0\n";
 							this_thread::sleep_for(chrono::milliseconds(100));
 							milliCounter += 100;
 						}
@@ -556,8 +623,9 @@ void menu() {
 					 << "[2] Broadcast\n"
 					 << "[3] Neighbors\n"
 					 << "[4] Polls\n"
+					 << "[5] Map\n"
 					 << "\nChoose ('q' to exit): ";
-				
+
 				cin >> response;
 
 				if (response == "1") {
@@ -578,7 +646,7 @@ void menu() {
 									int counter{ 60 };
 									while (counter --> 0) {
 										Manager::Get()->RefreshValue(*it2);
-										
+
 										this_thread::sleep_for(chrono::milliseconds(500));
 										cout << "ask..." << Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId) << "\n";
 									}
@@ -586,6 +654,133 @@ void menu() {
 								}
 							}
 						}
+					}
+				} else if (response == "5") {
+					// cout << "Hello\n";
+					// cout << nodes->size() <<  "Hello\n";
+					// cout << lastNode << "Hello\n";
+					// it = nodes->end();
+					// uint8 lastNode = (*it)->m_nodeId;
+
+					int nCounter(nodes->size());
+					int matrix[nCounter][nCounter];
+
+					for (int i = 0; i < nCounter; i++) {
+						for (int j = 0; j < nCounter; j++) {
+							matrix[i][j] = 0;
+						}
+					}
+
+					// cout << "Setup matrix:\n";
+					for (int i = 0; i < nCounter; i++) {
+						for (int j = 0; j < nCounter; j++) {
+							// cout << matrix[i][j] << " ";
+						}
+						// cout << "\n";
+					}
+
+					int nodeIds[nCounter];
+
+					for (int i = 0; i < nCounter; i++) {
+						it = nodes->begin();
+						advance(it, i);
+						nodeIds[i] = (*it)->m_nodeId;
+					}
+
+					// cout << "Length: " << to_string(nCounter) << "\n";
+
+					for (int i = 0; i < nCounter; i++) { // Nodes loop.
+						it = nodes->begin();
+						advance(it, i);
+						Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, bitmap);
+						// cout << "Node " << to_string((*it)->m_nodeId) << "\n";
+
+						if (!(*it)->m_isDead && (*it)->m_nodeId != 1) { // Check if the node is not the controller and can returns its neighbors.
+							cout << "\n";
+							for (int j = 0; j < 29; j++) { // Neigbors loop.
+								cout << to_string((*bitmap)[j]) << " ";
+							}
+							cout << "\n";
+
+							// cout << "\n";
+
+							// cout << "Neigbors: ";
+							for (int j = 0; j < 29; j++) { // Neigbors loop.
+								for (int k = 0; k < (int)nodes->size(); k++) {
+									auto jt = nodes->begin();
+									advance(jt, k);
+									if ((*jt)->m_nodeId == (*bitmap)[j]) {
+										// cout << to_string((*jt)->m_nodeId) << " ";
+										matrix[i][k] = 1;
+										break;
+									}
+								}
+								// for (auto jt = nodes->begin(); jt != nodes->end(); jt++) {
+								// 	if ((*jt)->m_nodeId == (*bitmap)[j]) {
+								// 		cout << to_string((*jt)->m_nodeId) << " ";
+								// 		matrix[i][]
+								// 		break;
+								// 	}
+								// }
+							}
+							cout << "\n";
+
+							// cout << to_string((*it)->m_nodeId) << "\n";
+
+							// for (int j = 0; j < 29; j++) { // Neigbors loop.
+							// 	bool eof(true);
+
+							// 	for (int k = 0; k < nCounter; k++) {
+							// 		cout << "nodeId " << to_string(nodeIds[k]) << ": " << to_string((*bitmap)[j]) << "\n";
+							// 		if ((*bitmap)[j] == nodeIds[k]) { // Check if the current value is a neigbor.
+							// 			eof = false;
+							// 			break;
+							// 		}
+							// 	}
+
+							// 	if (eof) {
+							// 		cout << "eof\n";
+							// 		break;
+							// 	} else {
+							// 		// cout << (*it)->m_nodeId << ": " << (*bitmap)[j] << "\n";
+							// 		matrix[i][j] = (*bitmap)[j];
+							// 	}
+							// }
+						}
+					}
+
+					// for (int i = 0; i < nCounter; i++) {
+					// 	for (int j = 0; j < nCounter; j++) {
+					// 		cout << matrix[i][j] << " ";
+					// 	}
+					// 	cout << "\n";
+					// }
+
+					// for (it = nodes->begin(); it != nodes->end(); it++) {
+					// 	if (!(*it)->m_isDead && (*it)->m_nodeId != 1) {
+					// 		cout << Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, bitmap) << "\n";
+
+					// 		for (int i = 0; i < 29; i++) {
+					// 			// if ((*bitmap)[i] > lastNode || (*bitmap)[i] == 0) {
+					// 			// 	cout << "Endf\n";
+					// 			// }
+					// 			// cout << to_string((*bitmap)[i]) << " ";
+
+					// 			for (auto iter = nodes->begin(); iter != nodes->end(); iter++) {
+					// 				if ((*iter)->m_nodeId == (*bitmap)[i]) {
+					// 					matrix[(*iter)->m_nodeId][(*iter)->m_nodeId]++;
+					// 					break;
+					// 				}
+					// 			}
+					// 		}
+					// 	}
+					// }
+
+					for (int i = 0; i < nCounter; i++) {
+						for (int j = 0; j < nCounter; j++) {
+							cout << matrix[i][j] << " ";
+						}
+						cout << "\n";
 					}
 				} else if (response == "2") {
 					cout << "\n>>─────|BROADCAST|─────<<\n\n";
@@ -598,7 +793,7 @@ void menu() {
 								int counter{ 60 };
 								while (counter --> 0) {
 									Manager::Get()->RefreshValue(*it2);
-									
+
 									this_thread::sleep_for(chrono::milliseconds(500));
 									if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
 										cout << (*it)->m_name << ": OK" << endl;
@@ -612,9 +807,9 @@ void menu() {
 					}
 				} else if (response == "3") {
 					cout << "\n>>─────|NEIGHBORS|─────<<\n\n";
-						
+
 					for (it = nodes->begin(); it != nodes->end(); it++) {
-						if ((*it)->m_nodeId != 1 && !(*it)->m_isDead) { // driver doesn't have neighbors property
+						if ((*it)->m_nodeId != 1 && !(*it)->m_isDead) { // The driver doesn't have neighbors property
 							cout << "[" << to_string((*it)->m_nodeId) << "] " << (*it)->m_name << "\n";
 						}
 					}
@@ -633,6 +828,7 @@ void menu() {
 							cout << "\n\n"
 								<< "[1] Synchronize neighbors\n"
 								<< "[2] Request neighbor update\n "
+								<< "[3] Heal network\n"
 								<< "\nChoose ('q' to exit): ";
 							cin >> response;
 
@@ -640,10 +836,14 @@ void menu() {
 								Manager::Get()->SyncronizeNodeNeighbors(homeID, (*it)->m_nodeId);
 								cout << "Done.\n";
 							} else if (response == "2") {
+								thread ttemp(watchState, homeID, LOOP_TIMEOUT);
+								ttemp.detach();
+
 								Manager::Get()->RequestNodeNeighborUpdate(homeID, (*it)->m_nodeId)
 									? cout << "Update request sent\n"
 									: cout << "Update request failed\n";
-								// while (stateInt != )
+							} else if (response == "3") {
+								Manager::Get()->HealNetwork(homeID, true);
 							}
 							break;
 						}
@@ -656,7 +856,7 @@ void menu() {
 						 << "[1] Set intensity\n"
 						 << "[2] Set interval for all devices (PLEASE BE CAREFUL)\n\n"
 						 << "Choose ('q' to exit): ";
-					
+
 					cin >> response;
 					cout << "\n";
 
@@ -681,7 +881,7 @@ void menu() {
 
 								for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
 									if (response == to_string(counterValue++)) {
-										cout << "\nValueID \"" << Manager::Get()->GetValueLabel(*it2) 
+										cout << "\nValueID \"" << Manager::Get()->GetValueLabel(*it2)
 											<< "\", current: " << to_string(Manager::Get()->GetPollIntensity(*it2))
 											<< " poll(s)/interval\n";
 
@@ -692,7 +892,7 @@ void menu() {
 											Manager::Get()->SetPollIntensity(*it2, stoi(response));
 											cout << "Done\n";
 										}
-										break;											
+										break;
 									}
 								}
 							}
@@ -717,7 +917,7 @@ void menu() {
 			thread t3(nodeSwitch, stateInt, &lock);
 			t3.detach();
 			stateInt = Manager::Get()->GetDriverState(Five::homeID);
-			
+
 			break;
 		}
 		case 2:
@@ -726,10 +926,13 @@ void menu() {
 			Manager::Get()->RemoveNode(Five::homeID);
 
 			//Printing progression messages
-			thread t3(nodeSwitch, stateInt, &lock);
-			t3.detach();
-			stateInt = Manager::Get()->GetDriverState(Five::homeID);
-			
+			// thread t3(statusObserver, nodes);
+			// t3.join();
+
+			// thread t3(nodeSwitch, stateInt, &lock);
+			// t3.detach();
+			// stateInt = Manager::Get()->GetDriverState(Five::homeID);
+
 			break;
 		}
 		case 3:
@@ -739,15 +942,15 @@ void menu() {
 			if(choice == -1){ //Impossible value except if user chooses to quit
 				break;
 			}
-			
+
 			//Printing all the node's values with name, id and ReadOnly state
-			printValues(&choice, &it, it2, true);	
+			printValues(&choice, &it, it2, true);
 			break;
 		case 4:
 			//Printing node names and receiving user's choice
 
 			nodeChoice(&choice, it);
-			
+
 			if(choice == -1){ //Impossible value except if user chooses to quit
 				break;
 			}
@@ -765,7 +968,7 @@ void menu() {
 							counterValue++;
 							cout << counterValue << ". " << Manager::Get()->GetValueLabel(*it2) << endl;
 						}
-						
+
 					}
 
 					cout << "\nChoose a valueID: ";
@@ -779,14 +982,14 @@ void menu() {
 						if(!Manager::Get()->IsValueReadOnly(*it2)){
 							counterValue++;
 						}
-						
+
 						if (choice == counterValue) {
 
 							//Printing the current value
 							cout << Manager::Get()->GetValueLabel(*it2) << it2->GetAsString() << endl;
 							Manager::Get()->GetValueAsString((*it2), ptr_container);
 							cout << "Current value: " << *ptr_container << endl;
-							
+
 							//Asking the user to set the wanted value
 							cout << "Set to what ? ";
 							cin >> response;
@@ -814,7 +1017,7 @@ void menu() {
 			// choice = stoi(response);
 			// counterNode = 0;
 			// counterValue = 0;
-			
+
 			// for(valueIt = (*nodeIt) -> m_values.begin(); valueIt != (*nodeIt) -> m_values.end(); valueIt++)
 			// {
 			// 	counterValue++;
@@ -853,7 +1056,7 @@ void menu() {
 			//Printing node names and receiving user's choice
 			nodeChoice(&choice, it);
 
-			//Ask the node to recheck his neighboors 
+			//Ask the node to recheck his neighboors
 			for (it =Five::nodes->begin(); it !=Five::nodes->end(); it++){
 				if ((*it)->m_nodeId == choice){
 					Manager::Get()->HealNetworkNode((*it)->m_homeId, (*it)->m_nodeId, true);
@@ -892,10 +1095,10 @@ void menu() {
 			cout << endl;
 			// int i;
 			// int counter{ fileName.size() + 1 };
-			// char 
+			// char
 			// const char *fileChar = fileName.c_str();
 			// cout << (*fileChar)[0] << (*fileChar)[1] << endl;
-			// char[counter] fileChar = 
+			// char[counter] fileChar =
 			// for (i = 0; i < fileName.size(); i++) {
 			// 	fileChar app fileName.at(i);
 			// }
@@ -962,11 +1165,11 @@ void CheckFailedNode(string path){
 					}
 				}
 				file.close();
-				cout << "NODE HAS FAILED: " << nodeName << " id: " << unsigned(nodeId) << endl;
+				// cout << "NODE HAS FAILED: " << nodeName << " id: " << unsigned(nodeId) << endl;
 				if(!isIn){
 					file.open(path, ios::app);
 					file << "Label: " << nodeName << " Id: " << unsigned(nodeId) << " Type: " << nodeType << endl;
-					file.close();			
+					file.close();
 				}
 			}else if(!(Manager::Get()->IsNodeFailed(homeID, nodeId))){
 				// cout << "node not failed" << "id: " << unsigned(nodeId) << endl;
@@ -976,7 +1179,7 @@ void CheckFailedNode(string path){
 				while(getline(file, line)){
 					cout << line << endl;
 					string s = "Label: " + nodeName;
-					cout << s << endl;
+					// cout << s << endl;
 					if(line.find(s) == string::npos){
 						temp << line;
 					}

@@ -6,6 +6,16 @@
 #include <chrono>
 #include <ctime>
 #include <math.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+ #include <arpa/inet.h>
+#include <thread>
+
+#define PORT 5101
 
 using namespace OpenZWave;
 using namespace Five;
@@ -409,7 +419,7 @@ bool Five::nodeChoice(int* choice, list<NodeInfo*>::iterator it){
             cout << "[" << to_string((*it)->m_nodeId) << "] ";
             (*it)->m_isDead ? cout << "❌ " : cout << "✅ ";
             cout << getTime(convertDateTime((*it)->m_sync)) << ", "
-                    << (*it)->m_name << "\n";
+                 << (*it)->m_name << "\n";
         }
 
         cout << "\nChoose ('q' to exit): ";
@@ -430,15 +440,19 @@ bool Five::printValues(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
     int counterValue(0);
     for(*it = nodes->begin(); *it != nodes->end(); (*it)++){
         if (*choice == ((**it)->m_nodeId)) {
-            if(getOnly){
-                cout << "\n>>────|VALUES OF THE NODE " << to_string((**it)->m_nodeId) << "|────<<\n\n";
+            if(getOnly) {
+                cout << "\n>>────|VALUES OF THE NODE " << to_string((**it)->m_nodeId) << "|────<<\n\n"
+                     << "[<nodeId>] <label>, <value>, <readOnly>\n\n";
                 for(it2 = (**it)->m_values.begin(); it2 != (**it)->m_values.end(); it2++) {
                     Manager::Get()->GetValueAsString((*it2), ptr_container);
-                    cout << "[" << counterValue++ << "] " << Manager::Get()->GetValueLabel(*it2) << " : " << *ptr_container << "                    Read Only: " 
-                    << Manager::Get()->IsValueReadOnly(*it2) << /*"                Index: " << to_string((*it2).GetIndex()) << "            CCID: " << to_string((*it2).GetCommandClassId()) << */endl;
+                    cout << "[" << counterValue++ << "] "
+                         << Manager::Get()->GetValueLabel(*it2) << ", "
+                         << *ptr_container << ", " 
+                         << Manager::Get()->IsValueReadOnly(*it2)
+                         << "                          " << to_string(it2->GetId()) << endl;
                 } 
                 return true;
-            }else{
+            } else {
                 for (it2 = (**it)->m_values.begin(); it2 != (**it)->m_values.end(); it2++) {
                     if ((ValueID::ValueType_List == (*it2).GetType() || ValueID::ValueType_Button == (*it2).GetType()) && !Manager::Get()->IsValueReadOnly(*it2)) {
                         cout << "[" << ++counterValue << "] " << Manager::Get()->GetValueLabel((*it2)) << endl;
@@ -450,7 +464,7 @@ bool Five::printValues(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
                 }
                 cout << "\nSelect a value ('q' to exit): ";
                 cin >> response;
-                if(response == "q"){
+                if (response == "q") {
                     *choice = -1;
                     return true;
                 }
@@ -480,8 +494,7 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
         if (ValueID::ValueType_Button == (*it2).GetType() && !Manager::Get()->IsValueReadOnly(*it2))
         {
             counterValue++;
-            if (*choice == counterValue)
-            {
+            if (*choice == counterValue) {
                 setButton((*it2));
                 return true;
             }
@@ -595,4 +608,185 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
         }
     }
     return true;
+}
+
+bool UT_isDigit(string arg) {
+    int i;
+    
+    for (i=0; i<(int)arg.size(); i++) {
+        if (!isdigit(arg[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool UT_isValueIdExists(string id, ValueID* ptr_valueID) {
+    bool valueIdFound(false);
+
+    for (auto it = nodes->begin(); it != nodes->end(); it++) {
+        list<ValueID>::iterator it2;
+
+        for (it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+            if (to_string((*it2).GetId()) == id) {
+                valueIdFound = true;
+                break;
+            }
+        }
+
+        if (valueIdFound) {
+            *ptr_valueID = *it2;
+            break;
+        }
+    }
+
+    return valueIdFound;
+}
+
+string Five::receiveMsg(sockaddr_in address, int server_fd) {
+    vector<string> args;
+    char *ptr;
+
+    string output("");
+    string myFunc("");
+    int counter(0);
+    int new_socket(0);
+    int valread(0);
+    char buffer[1024] = {0};
+    int addrlen = sizeof(address);
+    
+    for (int i = 0; i < 1024; i++) { buffer[i] = 0; }
+
+    new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
+    valread = read(new_socket, buffer, 1024);
+
+    output += "[" + getTime(convertDateTime(chrono::high_resolution_clock::now()));
+    output += "] ";
+    output += inet_ntoa(address.sin_addr);
+    output += ":" + to_string(ntohs(address.sin_port));
+    output += ", message(";
+    output += to_string(valread);
+    output += "): \"";
+    output += buffer;
+    output += "\" --> status: ";
+    
+    ptr = strtok(buffer, ",");
+
+    while (ptr != NULL) {
+        if (counter++ == 0) {
+            for (unsigned long i = 0; i < sizeof(ptr); i++) {
+                myFunc += ptr[i];
+            }
+        } else {
+            args.push_back(ptr);
+        }
+
+        ptr = strtok(NULL, ",");
+    }
+
+    if (myFunc == "setValue") {
+        if ((int)args.size() != 2) {
+            output += "404, \"ArgError\"";
+            return output;
+        }
+
+        for (int i = 0; i < (int)args.size(); i++) {
+            if (i == 0) {
+                if (!UT_isDigit(args[i])) {
+                    output += "404, \"ValueTypeError\"";
+                    return output;
+                }
+                
+                ValueID valueID;
+
+                if (!UT_isValueIdExists(args[i], &valueID)) {
+                    output += "404, \"ValueNotFound\"";
+                    return output;
+                }
+
+                Manager::Get()->SetValue(valueID, args[1]);                
+                output += "200";
+                return output;
+            }
+        }
+    } else {
+        //TODO manage all command function in elseif condition.
+    }
+
+    output += "200";
+    return output;
+}
+
+void Five::server(int port) {
+	int server_fd;
+	struct sockaddr_in address;
+	int opt = 1;
+	
+	// Creating socket file descriptor
+	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+		perror("socket failed");
+		exit(EXIT_FAILURE);
+	}
+
+	// Forcefully attaching socket to the port 8080
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+		perror("setsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_port = htons(port);
+
+	bind(server_fd, (struct sockaddr*)&address, sizeof(address));
+	listen(server_fd, 3);
+    cout << "Listening on port " << port << endl;
+    
+    while (true) {
+        cout << receiveMsg(address, server_fd) << endl;
+    }
+}
+
+int Five::sendMsg(const char* address, const int port, string message) {
+    int sock = 0;
+    struct sockaddr_in serv_addr;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        return EXIT_FAILURE;
+    }
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, address, &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        return EXIT_FAILURE;
+    }
+
+    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        return EXIT_FAILURE;
+    }
+
+    char fMessage[message.length() + 1];
+    strcpy(fMessage, message.c_str());
+
+    for (int i = 0; i < (int)message.length(); i++) {
+        fMessage[i] = message[i];
+    }
+
+    send(sock, fMessage, strlen(fMessage), 0);
+    
+    return EXIT_SUCCESS;
+}
+
+string convertToString(char* a, int size)
+{
+    int i;
+    string s = "";
+    for (i = 0; i < size; i++) {
+        s = s + a[i];
+    }
+    return s;
 }
