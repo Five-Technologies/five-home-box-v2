@@ -234,9 +234,82 @@ void onNotification(Notification const* notification, void* context) {
 	string notifType{ "" };
 	string log{ "" };
 
-	if (notification->GetType() == Notification::Type_ValueChanged || notification->GetType() == Notification::Type_ValueRefreshed) {
-		cout << "Send message...";
-		thread ttemp(sendMsg, LOCAL_ADDRESS, PHP_PORT, "notification!");
+	if (notification->GetType() == Notification::Type_ValueChanged) {
+		string msg = "";
+		msg += "\"notificationType\": \"";
+		msg += NOTIFICATIONS[(int)notification->GetType()];
+		msg += "\", \"object\": { \"nodeId\": ";
+		msg += to_string(notification->GetNodeId());
+		msg += ", \"manufacturerName\": \"";
+		msg += Manager::Get()->GetNodeManufacturerName(homeID, notification->GetNodeId());
+		msg += "\", \"nodeDead\": ";
+		msg += to_string(getNode(notification->GetNodeId(), nodes)->m_isDead);
+		msg += ", \"lastUpdate\": \"";
+		
+		NodeInfo* node = getNode(notification->GetNodeId(), nodes);
+		list<ValueID> values = node->m_values;
+		string date = getDate(convertDateTime(node->m_sync));
+		string time = getTime(convertDateTime(node->m_sync));
+
+		msg += date;
+		msg += " ";
+		msg += time;
+		msg += "\", \"valueIds\": [ ";
+
+		for (auto it=values.begin(); it!=values.end(); it++) {
+			if (it != values.begin()) msg += ", ";
+
+			msg += "{ \"id\": \"";
+			msg += to_string(it->GetId());
+			msg += "\", \"readonly\": ";
+			msg += to_string(Manager::Get()->IsValueReadOnly(*it));
+			msg += ", \"label\": \"";
+			msg += Manager::Get()->GetValueLabel(*it);
+			msg += "\", \"value\": ";
+
+			ValueID::ValueType valType = it->GetType();
+			bool isNumeric(false);
+			string value;
+
+			Manager::Get()->GetValueAsString(*it, &value);
+
+			for (int i=0; i<(int)(sizeof(NUMERIC_TYPES)/sizeof(int)); i++) {
+				if (NUMERIC_TYPES[i] == valType) {
+					isNumeric = true;
+					break;
+				}
+			}
+
+			if (valType == ValueID::ValueType::ValueType_Bool) {
+				value[0] = tolower(value[0]);
+			}
+
+			if (isNumeric) {
+				msg += value;
+			} else {
+				if (value == "False" || value == "True") {
+					value[0] = tolower(value[0]);
+					msg += value;
+				} else {
+					msg += "\"";
+					msg += value;
+					msg += "\"";
+				}
+			}
+
+			msg += " }";
+		}
+
+		msg += " ] } }";
+
+		msg = ", " + msg;
+		string header = "{ \"msgLength\": ";
+		int msgLength = msg.length() + header.length();
+
+		msg = to_string(msgLength + to_string(msgLength).length()) + msg;
+		msg = header + msg;
+
+		thread ttemp(sendMsg, LOCAL_ADDRESS, PHP_PORT, msg);
 		ttemp.join();
 	}
 

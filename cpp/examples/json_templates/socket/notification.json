@@ -1,0 +1,41 @@
+{
+    "notificationType": "VALUE_CHANGED",
+    "object": {
+        "nodeId": 7,
+        "manufacturerName": "NAS-WR01Z Power plug 12A",
+        "nodeDead": false,
+        "lastUpdate": "2022-04-12 10:04:23",
+        "valueIds": [
+            {
+                "id": "122241040",
+                "readonly": 0,
+                "label": "Switch",
+                "value": 0
+            },
+            {
+                "id": "130662420",
+                "readonly": 0,
+                "label": "Switch All",
+                "value": 0
+            },
+            {
+                "id": "122454034",
+                "readonly": 1,
+                "label": "Electric - kWh",
+                "value": 0
+            },
+            {
+                "id": "562950075875346",
+                "readonly": 1,
+                "label": "Electric - W",
+                "value": 0.00
+            },
+            {
+                "id": "1125900029296658",
+                "readonly": 1,
+                "label": "Electric - V",
+                "value": 231.64
+            }
+        ]
+    }
+}

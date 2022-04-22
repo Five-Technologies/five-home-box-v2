@@ -50,7 +50,7 @@ ozw_config
 *~
 /.cproject
 /zwscene.xml
-/ozwcache_*.xml
+ozwcache_*.xml
 .idea/
 .idea/*
 ozw_config
@@ -58,6 +58,5 @@ gtest-main
 cpp/src/command_classes/\.DS_Store
 .DS_Store
 
-MinOZW
-ozwcache_*
+# MinOZW
 

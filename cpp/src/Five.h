@@ -64,13 +64,31 @@ namespace Five {
     logLevel LEVEL;
     Driver::ControllerState driverState;
 
+    const int SOCKET_MSG_LENGTH{ 256 };
+    
+    const ValueID::ValueType NUMERIC_TYPES[] = {
+        ValueID::ValueType::ValueType_Bool,
+        ValueID::ValueType::ValueType_Byte,
+        ValueID::ValueType::ValueType_Decimal,
+        ValueID::ValueType::ValueType_Int,
+        ValueID::ValueType::ValueType_Short,
+    };
+
     const string STATES[]{
-        "Normal", "Starting",
-        "Cancel", "Error",
-        "Waiting", "Sleeping",
-        "InProgress", "Completed",
-        "Failed", "NodeOK",
-        "NodeFailed"
+        "Normal", "Starting", "Cancel", "Error",
+        "Waiting", "Sleeping", "InProgress", "Completed",
+        "Failed", "NodeOK", "NodeFailed"
+    };
+
+    const string NOTIFICATIONS[] {
+        "VALUED_ADDED", "VALUE_REMOVED", "VALUE_CHANGED", "VALUE_REFRESHED", "GROUP",
+        "NODE_NEW", "NODE_ADDED", "NODE_REMOVED", "NODE_PROTOCOL_INFO", "NODE_NAMING",
+        "NODE_EVENT", "POLLING_DISABLED", "POLLING_ENABLED", "SCENE_EVENT", "CREATE_BUTTON",
+        "DELETE_BUTTON", "BUTTON_ON", "BUTTON_OFF", "DRIVER_READY", "DRIVER_FAILED",
+        "DRIVER_RESET", "ESSENTIAL_NODE_QUERIES_COMPLETE", "NODE_QUERIES_COMPLETE",
+        "AWAKE_NODE_QUERIED", "ALL_NODES_QUERIED_SOME_DEAD", "ALL_NODES_QUERIED",
+        "NOTIFICATION", "DRIVER_REMOVED", "CONTROLLER_COMMAND", "NODE_RESET",
+        "USER_ALERTS", "MANUFACTURER_SPECIFIC_DB_READY"
     };
 
     // Config method

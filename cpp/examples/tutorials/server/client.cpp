@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <thread>
 
+#define SOCKET_HEADER_LENGTH 22
+
 using namespace std;
 
 int client();
@@ -23,8 +25,7 @@ int main(int argc, char const* argv[])
 	struct sockaddr_in address;
 	int opt = 1;
 	int addrlen = sizeof(address);
-	char buffer[1024] = { 0 };
-	char* hello = "Hello from server";
+	char headBuffer[SOCKET_HEADER_LENGTH] = { 0 };
 
 	// Creating socket file descriptor
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -37,6 +38,7 @@ int main(int argc, char const* argv[])
 		perror("setsockopt");
 		exit(EXIT_FAILURE);
 	}
+
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(5100);
@@ -47,12 +49,29 @@ int main(int argc, char const* argv[])
     
     while (true) {
         new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
+        valread = read(new_socket, headBuffer, SOCKET_HEADER_LENGTH);
+        
+		string output = "";
+		int msgLength;
 
-        valread = read(new_socket, buffer, 1024);
-        printf("%s\n", buffer);
-		for (int i = 0; i < 1024; i++) {
-			buffer[i] = 0;
+		for (int i = 0; i < SOCKET_HEADER_LENGTH; i++) {
+			if (isdigit(headBuffer[i])) {
+				output += headBuffer[i];
+			}
+			headBuffer[i] = 0;
 		}
+
+		msgLength = stoi(output);
+
+		char msgBuffer[msgLength] = {0};
+		valread = read(new_socket, msgBuffer, msgLength);
+
+		for (int i = 0; i < msgLength; i++) {
+			output += msgBuffer[i];
+			msgBuffer[i] = 0;
+		}
+
+		cout << "[MESSAGE] length: " << output << endl;
     }
 
 	return 0;
@@ -62,7 +81,6 @@ int client() {
 	while(true) {
 		int sock = 0, valread;
 		struct sockaddr_in serv_addr;
-		char buffer[1024] = { 0 };
 
 		if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 			printf("\n Socket creation error \n");

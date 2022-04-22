@@ -394,7 +394,7 @@ string Five::getTime(tm* datetime) {
 }
 
 string Five::getDate(tm* datetime) {
-    return to_string(datetime->tm_mday) + "/" + to_string(datetime->tm_mon);
+    return to_string(datetime->tm_year) + "-" + to_string(datetime->tm_mon) + "-" + to_string(datetime->tm_mday);
 }
 
 double Five::difference(chrono::high_resolution_clock::time_point datetime01, chrono::high_resolution_clock::time_point datetime02) {
@@ -675,7 +675,9 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
     while (ptr != NULL) {
         if (counter++ == 0) {
             for (unsigned long i = 0; i < sizeof(ptr); i++) {
-                myFunc += ptr[i];
+                if (ptr[i] != '\0') {
+                    myFunc += ptr[i];
+                }
             }
         } else {
             args.push_back(ptr);
@@ -686,14 +688,14 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
 
     if (myFunc == "setValue") {
         if ((int)args.size() != 2) {
-            output += "404, \"ArgError\"";
+            output += "400, \"ArgumentError\"";
             return output;
         }
 
         for (int i = 0; i < (int)args.size(); i++) {
             if (i == 0) {
                 if (!UT_isDigit(args[i])) {
-                    output += "404, \"ValueTypeError\"";
+                    output += "400, \"ValueTypeError\"";
                     return output;
                 }
                 
@@ -709,8 +711,10 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
                 return output;
             }
         }
-    } else {
-        //TODO manage all command function in elseif condition.
+    } else if (myFunc == "addNode") {
+        Manager::Get()->AddNode(homeID, false);
+    } else if (myFunc == "rmNode") {
+        Manager::Get()->RemoveNode(homeID);
     }
 
     output += "200";
@@ -768,6 +772,9 @@ int Five::sendMsg(const char* address, const int port, string message) {
         printf("\nConnection Failed \n");
         return EXIT_FAILURE;
     }
+
+    // cout << "-> MSG: " << to_string(message.length()) << endl;
+    // cout << message << endl;
 
     char fMessage[message.length() + 1];
     strcpy(fMessage, message.c_str());
