@@ -63,8 +63,6 @@ namespace Five {
     const int LOOP_TIMEOUT{ 100 }; // Loop counter
     logLevel LEVEL;
     Driver::ControllerState driverState;
-
-    const int SOCKET_MSG_LENGTH{ 256 };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
         ValueID::ValueType::ValueType_Bool,

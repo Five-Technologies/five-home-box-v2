@@ -675,9 +675,13 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
     while (ptr != NULL) {
         if (counter++ == 0) {
             for (unsigned long i = 0; i < sizeof(ptr); i++) {
+<<<<<<< HEAD
                 if (ptr[i] != '\0') {
                     myFunc += ptr[i];
                 }
+=======
+                myFunc += ptr[i];
+>>>>>>> 6afff2780807e890d63e5657a9c30ddddcdd9634
             }
         } else {
             args.push_back(ptr);
@@ -688,14 +692,22 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
 
     if (myFunc == "setValue") {
         if ((int)args.size() != 2) {
+<<<<<<< HEAD
             output += "400, \"ArgumentError\"";
+=======
+            output += "404, \"ArgError\"";
+>>>>>>> 6afff2780807e890d63e5657a9c30ddddcdd9634
             return output;
         }
 
         for (int i = 0; i < (int)args.size(); i++) {
             if (i == 0) {
                 if (!UT_isDigit(args[i])) {
+<<<<<<< HEAD
                     output += "400, \"ValueTypeError\"";
+=======
+                    output += "404, \"ValueTypeError\"";
+>>>>>>> 6afff2780807e890d63e5657a9c30ddddcdd9634
                     return output;
                 }
                 
