@@ -70,7 +70,7 @@ int main(int argc, char const* argv[])
 			msgBuffer[i] = 0;
 		}
 
-		cout << "[MESSAGE] length: " << output << endl;
+		cout << "[MESSAGE] length: " << msgLength << endl;
     }
 
 	return 0;

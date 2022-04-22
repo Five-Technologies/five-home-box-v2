@@ -12,13 +12,16 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
- #include <arpa/inet.h>
+#include <arpa/inet.h>
+#include <iostream>
 #include <thread>
+#include <fstream>
 
 #define PORT 5101
 
 using namespace OpenZWave;
 using namespace Five;
+using namespace std;
 
 NodeInfo* Five::getNode(uint8 nodeID, list<NodeInfo*> *nodes) {
     list<NodeInfo*>::iterator it;
@@ -796,4 +799,159 @@ string convertToString(char* a, int size)
         s = s + a[i];
     }
     return s;
+}
+
+string Five::buildNotifMsg(Notification const *notification) {
+    string msg = "";
+    msg += "\"notificationType\": \"";
+    msg += NOTIFICATIONS[(int)notification->GetType()];
+    msg += "\", \"object\": { \"nodeId\": ";
+    msg += to_string(notification->GetNodeId());
+    msg += ", \"manufacturerName\": \"";
+    msg += Manager::Get()->GetNodeManufacturerName(homeID, notification->GetNodeId());
+    msg += "\", \"nodeDead\": ";
+    msg += to_string(getNode(notification->GetNodeId(), nodes)->m_isDead);
+    msg += ", \"lastUpdate\": \"";
+    
+    NodeInfo* node = getNode(notification->GetNodeId(), nodes);
+    list<ValueID> values = node->m_values;
+    string date = getDate(convertDateTime(node->m_sync));
+    string time = getTime(convertDateTime(node->m_sync));
+
+    msg += date;
+    msg += " ";
+    msg += time;
+    msg += "\", \"valueIds\": [ ";
+
+    for (auto it=values.begin(); it!=values.end(); it++) {
+        if (it != values.begin()) msg += ", ";
+
+        msg += "{ \"id\": \"";
+        msg += to_string(it->GetId());
+        msg += "\", \"readonly\": ";
+        msg += to_string(Manager::Get()->IsValueReadOnly(*it));
+        msg += ", \"label\": \"";
+        msg += Manager::Get()->GetValueLabel(*it);
+        msg += "\", \"value\": ";
+
+        ValueID::ValueType valType = it->GetType();
+        bool isNumeric(false);
+        string value;
+
+        Manager::Get()->GetValueAsString(*it, &value);
+
+        for (int i=0; i<(int)(sizeof(NUMERIC_TYPES)/sizeof(int)); i++) {
+            if (NUMERIC_TYPES[i] == valType) {
+                isNumeric = true;
+                break;
+            }
+        }
+
+        if (valType == ValueID::ValueType::ValueType_Bool) {
+            value[0] = tolower(value[0]);
+        }
+
+        if (isNumeric) {
+            msg += value;
+        } else {
+            if (value == "False" || value == "True") {
+                value[0] = tolower(value[0]);
+                msg += value;
+            } else {
+                msg += "\"";
+                msg += value;
+                msg += "\"";
+            }
+        }
+
+        msg += " }";
+    }
+
+    msg += " ] } }";
+
+    msg = ", " + msg;
+    string header = "{ \"msgLength\": ";
+    int msgLength = msg.length() + header.length();
+
+    msg = to_string(msgLength + to_string(msgLength).length()) + msg;
+    msg = header + msg;
+    return msg;
+}
+
+void Five::statusObserver(list<NodeInfo*> *nodes) {
+    while(true) {
+		fstream file;
+		string line;
+		list<NodeInfo*>::iterator it;
+		list<ValueID>::iterator it2;
+		int32 wakeUpInterval;
+
+		// Get the current counter from epoch.
+		int64 now = chrono::high_resolution_clock::now().time_since_epoch().count();
+
+
+		Driver::ControllerState newState( Driver::ControllerState::ControllerState_Error );
+
+		if (homeID != 0)
+			newState = Manager::Get()->GetDriverState(homeID);
+
+		if (driverState != newState) {
+			cout << "State: " << STATES[newState] << "\n";
+			driverState = newState;
+		}
+
+		for (it = nodes->begin(); it != nodes->end(); it++) {
+			list<ValueID> valueIDs = (*it)->m_values;
+
+			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
+				string label = Manager::Get()->GetValueLabel(*it2);
+
+				if (label.find("Wake-up Interval") != string::npos) { // The object has a sleep interval.
+					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval); // Stores the object wakeUpInteral value.
+
+					// Check if (now - lastUpdate) is greater than the wakeUpInterval
+					// or if the object is not synchronized yet.
+					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
+						(*it)->m_isDead = true;
+
+						// file.open(FAILED_NODE_PATH, ios::in);
+						// while(getline(file, line)){
+						// 	if(line.find("Label: " + (*it)->m_name) != string::npos){
+						// 		isIn = 1;
+						// 	}
+						// }
+						// file.close();
+						// if(!isIn){
+						// 	file.open(FAILED_NODE_PATH, ios::app);
+						// 	file << "Label: " << (*it)->m_name << " Id: " << unsigned((*it)->m_nodeId) << " Type: " << (*it)->m_nodeType << endl;
+						// 	file.close();
+						// }
+					}else {
+						(*it)->m_isDead = false;
+
+						// file.open(FAILED_NODE_PATH, ios::in);
+						// fstream temp;
+						// temp.open("temp.txt", ios::app);
+						// while(getline(file, line)){
+						// 	cout << line << endl;
+						// 	string s = "Label: " + (*it)->m_name;
+						// 	cout << s << endl;
+						// 	if(line.find(s) == string::npos){
+						// 		temp << line;
+						// 	}
+						// }
+						// temp.close();
+						// file.close();
+
+						// const char *p = FAILED_NODE_PATH.c_str();
+						// remove(p);
+						// rename("temp.txt", p);
+					}
+					break;
+				}
+			}
+		}
+
+		this_thread::sleep_for(chrono::milliseconds(Five::OBSERVER_PERIOD));
+	}
 }

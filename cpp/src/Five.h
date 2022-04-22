@@ -157,6 +157,11 @@ namespace Five {
     int sendMsg(const char* address, const int port, string message);
     string receiveMsg(sockaddr_in address, int server_fd);
     void server(int port);
+    string buildNotifMsg(Notification const *notification);
+
+    // Driver
+    void statusObserver(list<NodeInfo*> *nodes);
+
 }
 
 #endif

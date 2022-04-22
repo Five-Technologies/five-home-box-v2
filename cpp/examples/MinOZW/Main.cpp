@@ -32,7 +32,6 @@ tm* tm_start{ convertDateTime(start) };
 
 static uint8 *bitmap[29];
 
-static list<string> g_setTypes = {"Color", "Switch", "Level", "Duration", "Volume", "Wake-up"};
 void onNotification(Notification const* notification, void* context);
 void menu();
 void nodeSwitch(int stateInt, int *lock);
@@ -42,8 +41,6 @@ void statusObserver(list<NodeInfo*> *nodes);
 int main(int argc, char const *argv[]) {
 	string response{ "3" };
 	cout << "Start process..." << endl;
-
-
 
 	// cout << ">>──── LOG LEVEL ────<<\n\n"
 	// 	 << "     0. NONE\n"
@@ -118,7 +115,7 @@ int main(int argc, char const *argv[]) {
 	Manager::Get()->AddWatcher(onNotification, NULL);
 	Manager::Get()->AddDriver(PORT);
 
-	thread t3(statusObserver, Five::nodes);
+	thread t3(Five::statusObserver, Five::nodes);
 	t3.detach();
 
 	thread t4(Five::server, ZWAVE_PORT);
@@ -132,94 +129,8 @@ int main(int argc, char const *argv[]) {
 	}
 
 	pthread_cond_wait(&initCond, &initMutex);
-
-	// 	Driver::DriverData data;
-	// 	Manager::Get()->GetDriverStatistics( Five::homeID, &data );
-	// 	printf("SOF: %d ACK Waiting: %d Read Aborts: %d Bad Checksums: %d\n", data.m_SOFCnt, data.m_ACKWaiting, data.m_readAborts, data.m_badChecksum);
-	// 	printf("Reads: %d Writes: %d CAN: %d NAK: %d ACK: %d Out of Frame: %d\n", data.m_readCnt, data.m_writeCnt, data.m_CANCnt, data.m_NAKCnt, data.m_ACKCnt, data.m_OOFCnt);
-	// 	printf("Dropped: %d Retries: %d\n", data.m_dropped, data.m_retries);
-
 	pthread_mutex_unlock( &g_criticalSection );
 	return 0;
-}
-
-
-void statusObserver(list<NodeInfo*> *nodes) {
-	while(true) {
-		fstream file;
-		string line;
-		list<NodeInfo*>::iterator it;
-		list<ValueID>::iterator it2;
-		int32 wakeUpInterval;
-
-		// Get the current counter from epoch.
-		int64 now = chrono::high_resolution_clock::now().time_since_epoch().count();
-
-
-		Driver::ControllerState newState( Driver::ControllerState::ControllerState_Error );
-
-		if (homeID != 0)
-			newState = Manager::Get()->GetDriverState(homeID);
-
-		if (driverState != newState) {
-			cout << "State: " << STATES[newState] << "\n";
-			driverState = newState;
-		}
-
-		for (it = nodes->begin(); it != nodes->end(); it++) {
-			list<ValueID> valueIDs = (*it)->m_values;
-
-			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
-				string label = Manager::Get()->GetValueLabel(*it2);
-
-				if (label.find("Wake-up Interval") != string::npos) { // The object has a sleep interval.
-					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval); // Stores the object wakeUpInteral value.
-
-					// Check if (now - lastUpdate) is greater than the wakeUpInterval
-					// or if the object is not synchronized yet.
-					if (((now - (*it)->m_sync.time_since_epoch().count()) > (wakeUpInterval * pow(10, 9))) || convertDateTime((*it)->m_sync)->tm_hour == 1) {
-						(*it)->m_isDead = true;
-
-						// file.open(FAILED_NODE_PATH, ios::in);
-						// while(getline(file, line)){
-						// 	if(line.find("Label: " + (*it)->m_name) != string::npos){
-						// 		isIn = 1;
-						// 	}
-						// }
-						// file.close();
-						// if(!isIn){
-						// 	file.open(FAILED_NODE_PATH, ios::app);
-						// 	file << "Label: " << (*it)->m_name << " Id: " << unsigned((*it)->m_nodeId) << " Type: " << (*it)->m_nodeType << endl;
-						// 	file.close();
-						// }
-					}else {
-						(*it)->m_isDead = false;
-
-						// file.open(FAILED_NODE_PATH, ios::in);
-						// fstream temp;
-						// temp.open("temp.txt", ios::app);
-						// while(getline(file, line)){
-						// 	cout << line << endl;
-						// 	string s = "Label: " + (*it)->m_name;
-						// 	cout << s << endl;
-						// 	if(line.find(s) == string::npos){
-						// 		temp << line;
-						// 	}
-						// }
-						// temp.close();
-						// file.close();
-
-						// const char *p = FAILED_NODE_PATH.c_str();
-						// remove(p);
-						// rename("temp.txt", p);
-					}
-					break;
-				}
-			}
-		}
-
-		this_thread::sleep_for(chrono::milliseconds(Five::OBSERVER_PERIOD));
-	}
 }
 
 void onNotification(Notification const* notification, void* context) {
@@ -235,79 +146,7 @@ void onNotification(Notification const* notification, void* context) {
 	string log{ "" };
 
 	if (notification->GetType() == Notification::Type_ValueChanged) {
-		string msg = "";
-		msg += "\"notificationType\": \"";
-		msg += NOTIFICATIONS[(int)notification->GetType()];
-		msg += "\", \"object\": { \"nodeId\": ";
-		msg += to_string(notification->GetNodeId());
-		msg += ", \"manufacturerName\": \"";
-		msg += Manager::Get()->GetNodeManufacturerName(homeID, notification->GetNodeId());
-		msg += "\", \"nodeDead\": ";
-		msg += to_string(getNode(notification->GetNodeId(), nodes)->m_isDead);
-		msg += ", \"lastUpdate\": \"";
-		
-		NodeInfo* node = getNode(notification->GetNodeId(), nodes);
-		list<ValueID> values = node->m_values;
-		string date = getDate(convertDateTime(node->m_sync));
-		string time = getTime(convertDateTime(node->m_sync));
-
-		msg += date;
-		msg += " ";
-		msg += time;
-		msg += "\", \"valueIds\": [ ";
-
-		for (auto it=values.begin(); it!=values.end(); it++) {
-			if (it != values.begin()) msg += ", ";
-
-			msg += "{ \"id\": \"";
-			msg += to_string(it->GetId());
-			msg += "\", \"readonly\": ";
-			msg += to_string(Manager::Get()->IsValueReadOnly(*it));
-			msg += ", \"label\": \"";
-			msg += Manager::Get()->GetValueLabel(*it);
-			msg += "\", \"value\": ";
-
-			ValueID::ValueType valType = it->GetType();
-			bool isNumeric(false);
-			string value;
-
-			Manager::Get()->GetValueAsString(*it, &value);
-
-			for (int i=0; i<(int)(sizeof(NUMERIC_TYPES)/sizeof(int)); i++) {
-				if (NUMERIC_TYPES[i] == valType) {
-					isNumeric = true;
-					break;
-				}
-			}
-
-			if (valType == ValueID::ValueType::ValueType_Bool) {
-				value[0] = tolower(value[0]);
-			}
-
-			if (isNumeric) {
-				msg += value;
-			} else {
-				if (value == "False" || value == "True") {
-					value[0] = tolower(value[0]);
-					msg += value;
-				} else {
-					msg += "\"";
-					msg += value;
-					msg += "\"";
-				}
-			}
-
-			msg += " }";
-		}
-
-		msg += " ] } }";
-
-		msg = ", " + msg;
-		string header = "{ \"msgLength\": ";
-		int msgLength = msg.length() + header.length();
-
-		msg = to_string(msgLength + to_string(msgLength).length()) + msg;
-		msg = header + msg;
+		string msg = buildNotifMsg(notification);
 
 		thread ttemp(sendMsg, LOCAL_ADDRESS, PHP_PORT, msg);
 		ttemp.join();
@@ -315,14 +154,9 @@ void onNotification(Notification const* notification, void* context) {
 
 	Node::NodeData nodeData;
 	Node::NodeData* ptr_nodeData = &nodeData;
-	Driver::DriverData driver_data;
 
 	pthread_mutex_lock(&g_criticalSection); // Lock the critical section
-	// uint8 neighborNodeID;
-	// uint8 *ptr_neighborNodeID = &neighborNodeID;
-
-	// uint8 *ptr2_neighborNodeID = &ptr_array_neighbotNodeID;
-
+	
 	if (Five::homeID == 0) {
 		Five::homeID = notification->GetHomeId();
 	}
@@ -331,15 +165,15 @@ void onNotification(Notification const* notification, void* context) {
 
 	switch (notification->GetType()) {
 		case Notification::Type_ValueAdded:
+			notifType = "VALUE ADDED";
+			log += "[VALUE_ADDED]	                  node " + to_string(notification->GetNodeId()) + ", value " + to_string(valueID.GetId()) + '\n';
+
 			for (it = nodes->begin(); it != nodes->end(); it++) {
 				if (notification->GetNodeId() == (*it)->m_nodeId) {
 					(*it)->m_name = Manager::Get()->GetNodeProductName(homeID, notification->GetNodeId());
 				}
 			}
 
-			log += "[VALUE_ADDED]	                  node " + to_string(notification->GetNodeId()) + ", value " + to_string(valueID.GetId()) + '\n';
-
-			notifType = "VALUE ADDED";
 			addValue(valueID, getNode(notification->GetNodeId(), Five::nodes));
 			break;
 		case Notification::Type_ValueRemoved:
@@ -351,43 +185,23 @@ void onNotification(Notification const* notification, void* context) {
 			removeValue(valueID);
 			break;
 		case Notification::Type_ValueChanged:
+			notifType = "VALUE CHANGED";
+
 			Manager::Get()->GetValueAsString(valueID, ptr_container);
 			Manager::Get()->GetNodeStatistics(valueID.GetHomeId(), valueID.GetNodeId(), ptr_nodeData);
-			// cout << "Hello" << endl;
-			// cout << "current state: " << Manager::Get()->GetDriverState(notification->GetHomeId()) << endl;
 
 			log += "[VALUE_CHANGED]                   node "
 			    + to_string(valueID.GetNodeId()) + ", "
 				+ Manager::Get()->GetValueLabel(valueID) + ": "
 				+ *ptr_container + '\n';
 
-			notifType = "VALUE CHANGED";
-			// Manager::Get()->SyncronizeNodeNeighbors(valueID.GetHomeId(), valueID.GetNodeId());
-			// cout << "pointer: " << (*ptr_nodeData).m_routeScheme << endl;
-			// cout << "route: " << Manager::Get()->GetNodeRouteScheme(ptr_nodeData) << endl;
-			// Manager::Get()->RequestNodeNeighborUpdate(valueID.GetHomeId(), valueID.GetNodeId());
-
 			valueID = notification->GetValueID();
-			// cout << "[" << time(0) << " : VALUE_CHANGED]" << "label: " << valueLabel << ", id: " << v.GetId() << "nodeId: " << v.GetNodeId() << endl;
 			break;
 		case Notification::Type_ValueRefreshed:
+			notifType = "VALUE REFRESHED";
 			Manager::Get()->GetValueAsString(valueID, ptr_container);
 			log += "[VALUE_REFRESHED]                 node " + to_string(valueID.GetNodeId()) + ", "
-			     + Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + "\n";
-				//  + ", neigbors: " + to_string(Manager::Get()->GetNodeNeighbors(valueID.GetHomeId(), 1, bitmap)) + '\n';
-
-			notifType = "VALUE REFRESHED";
-
-			// for (int i = 0; i < 29; i++) {
-				// for (j = 0; j < 8; j++) {
-				// 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
-				// }
-				// cout << '\n';
-				// cout << bitset<8>((*bitmap)[i]) << '\n';
-			// 	cout << to_string((*bitmap)[i]);
-			// }
-			// cout << '\n';
-
+				+ Manager::Get()->GetValueLabel(valueID) + ": " + *ptr_container + "\n";
 			break;
 		case Notification::Type_Group:
 			notifType = "GROUP";
@@ -397,8 +211,8 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_NodeAdded:
 			log += "[NODE_ADDED]                      node " + to_string(notification->GetNodeId()) + '\n';
-
 			notifType = "NODE ADDED";
+
 			pushNode(notification, Five::nodes);
 			break;
 		case Notification::Type_NodeRemoved:
@@ -442,9 +256,6 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_DriverReady:
 			log += "[DRIVER_READY]                    driver READY\n" + getDriverData(notification->GetHomeId()) + '\n';
 			notifType = "DRIVER READY";
-			Manager::Get()->GetDriverStatistics(notification->GetHomeId(), &driver_data);
-
-
 			break;
 		case Notification::Type_DriverFailed:
 			notifType = "DRIVER FAILED";
@@ -455,7 +266,6 @@ void onNotification(Notification const* notification, void* context) {
 		case Notification::Type_EssentialNodeQueriesComplete:
 			log += "[ESSENTIAL_NODE_QUERIES_COMPLETE] node " + to_string(notification->GetNodeId()) + ", queries COMPLETE" + '\n';
 			notifType = "ESSENTIAL NODE QUERIES COMPLETE";
-			// cout << "valueID: " << v.GetAsString() << endl;
 			break;
 		case Notification::Type_NodeQueriesComplete:
 			log += "[NODE_QUERIES_COMPLETE]           node " + to_string(valueID.GetNodeId()) + '\n';
@@ -490,8 +300,6 @@ void onNotification(Notification const* notification, void* context) {
 			break;
 		case Notification::Type_ControllerCommand:
 			notifType = "CONTROLLER COMMAND";
-			// cout << "Create command class..." << endl;
-			// cout << notification->Type_ControllerCommand << notification->GetCommand();
 			break;
 		case Notification::Type_NodeReset:
 			notifType = "NODE RESET";
@@ -752,12 +560,12 @@ void menu() {
 						// cout << "\n";
 					}
 
-					int nodeIds[nCounter];
+					// int nodeIds[nCounter];
 
 					for (int i = 0; i < nCounter; i++) {
 						it = nodes->begin();
 						advance(it, i);
-						nodeIds[i] = (*it)->m_nodeId;
+						// nodeIds[i] = (*it)->m_nodeId;
 					}
 
 					// cout << "Length: " << to_string(nCounter) << "\n";
