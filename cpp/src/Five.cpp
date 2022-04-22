@@ -646,6 +646,18 @@ bool UT_isValueIdExists(string id, ValueID* ptr_valueID) {
     return valueIdFound;
 }
 
+bool UT_isNodeIdExists(string id) {
+    bool nodeIdFound(false);
+
+    for (auto it = nodes->begin(); it != nodes->end(); it++) {
+        if (to_string((*it)->m_nodeId) == id) {
+            nodeIdFound = true;
+            break;
+        }
+    }
+    return nodeIdFound;
+}
+
 string Five::receiveMsg(sockaddr_in address, int server_fd) {
     vector<string> args;
     char *ptr;
@@ -675,13 +687,14 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
     
     ptr = strtok(buffer, ",");
 
+
     while (ptr != NULL) {
         if (counter++ == 0) {
-            for (unsigned long i = 0; i < sizeof(ptr); i++) {
-                if (ptr[i] != '\0') {
-                    myFunc += ptr[i];
-                }
-            }
+             for (unsigned long i = 0; i < sizeof(ptr); i++) {
+                 if(ptr[i] != '\0'){
+                     myFunc += ptr[i];
+                 }
+             }
         } else {
             args.push_back(ptr);
         }
@@ -695,32 +708,159 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
             return output;
         }
 
-        for (int i = 0; i < (int)args.size(); i++) {
-            if (i == 0) {
-                if (!UT_isDigit(args[i])) {
-                    output += "400, \"ValueTypeError\"";
-                    return output;
-                }
-                
-                ValueID valueID;
+        if (!UT_isDigit(args[0])) {
+            output += "404, \"ValueTypeError\"";
+            return output;
+        }
+        
+        ValueID valueID;
 
-                if (!UT_isValueIdExists(args[i], &valueID)) {
-                    output += "404, \"ValueNotFound\"";
-                    return output;
-                }
+        if (!UT_isValueIdExists(args[0], &valueID)) {
+            output += "404, \"ValueNotFound\"";
+            return output;
+        }
 
-                Manager::Get()->SetValue(valueID, args[1]);                
-                output += "200";
-                return output;
+        Manager::Get()->SetValue(valueID, args[1]);                
+        output += "200";
+        return output;
+    } else if (myFunc == "addNode") {
+        //Putting the driver into a listening state
+        Manager::Get()->AddNode(Five::homeID, false);
+        output += "200";
+        return output;
+    } else if (myFunc == "rmvNode"){ //removeNode
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    } else if (myFunc == "getValue"){
+        int counter(0);
+        string container;
+        string* ptr_container = &container;
+
+        if ((int)args.size() != 1) {
+            output += "404, \"ArgError\"";
+            return output;
+        }
+
+        if (!UT_isDigit(args[0])){
+            output += "404, \"ValueTypeError\"";
+            return output;
+        }
+
+        if(!UT_isNodeIdExists(args[0])){
+            output += "404, \"NodeNotFound\"";
+            return output;
+        }
+
+        for(auto it = nodes->begin(); it != nodes->end(); it++){
+            if (stoi(args[0]) == (*it)->m_nodeId) {
+                cout << "\n>>────|VALUES OF THE NODE " << to_string((*it)->m_nodeId) << "|────<<\n\n"
+                    << "[<nodeId>] <label>, <value>, <readOnly>\n\n";
+                for(auto it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++) {
+                    Manager::Get()->GetValueAsString((*it2), ptr_container);
+                    cout << "[" << counter++ << "] "
+                            << Manager::Get()->GetValueLabel(*it2) << ", "
+                            << *ptr_container << ", " 
+                            << Manager::Get()->IsValueReadOnly(*it2)
+                            << "                          " << to_string(it2->GetId()) << endl;
+                } 
             }
         }
-    } else if (myFunc == "addNode") {
-        Manager::Get()->AddNode(homeID, false);
-    } else if (myFunc == "rmNode") {
-        Manager::Get()->RemoveNode(homeID);
-    }
+        output += "200";
+        return output;
+    } else if (myFunc == "resetKey"){
 
-    output += "200";
+        if ((int)args.size() != 1) {
+            output += "404, \"ArgError\"";
+            return output;
+        }
+
+        if (UT_isDigit(args[0])){
+            output += "404, \"ValueTypeError\"";
+            return output;
+        }
+
+        if(args[0] == "hard"){
+            Manager::Get()->ResetController(Five::homeID);
+        } else if(args[0] == "soft"){
+            Manager::Get()->SoftReset(Five::homeID);
+        }
+        
+        output += "200";
+        return output;
+    } else if (myFunc == "hlNode"){ //healNode
+        if ((int)args.size() != 1) {
+            output += "404, \"ArgError\"";
+            return output;
+        }
+
+        if (!UT_isDigit(args[0])){
+            output += "404, \"ValueTypeError\"";
+            return output;
+        }
+
+        if(!UT_isNodeIdExists(args[0])){
+            output += "404, \"NodeNotFound\"";
+            return output;
+        }
+
+        for(auto it = nodes->begin(); it != nodes->end(); it++){
+            if (stoi(args[0]) == (*it)->m_nodeId) {
+                Manager::Get()->HealNetworkNode((*it)->m_homeId, (*it)->m_nodeId, true);
+            }
+        }
+        output += "200";
+        return output;
+    } else if (myFunc == "isFailed"){
+        bool isFailed = false;
+        if ((int)args.size() != 1) {
+            output += "404, \"ArgError\"";
+            return output;
+        }
+
+        if (!UT_isDigit(args[0])){
+            output += "404, \"ValueTypeError\"";
+            return output;
+        }
+
+        if(!UT_isNodeIdExists(args[0])){
+            output += "404, \"NodeNotFound\"";
+            return output;
+        }
+
+        for(auto it = nodes->begin(); it != nodes->end(); it++){
+            if (stoi(args[0]) == (*it)->m_nodeId) {
+                isFailed = Manager::Get()->IsNodeFailed(Five::homeID, (*it)->m_nodeId);
+            }
+        }
+        if(isFailed){
+        output += "200, Node " + args[0] + " is failed";
+        } else {
+        output += "200, Node " + args[0] + " is not failed";
+        }
+        return output;
+    } else if (myFunc == "Ping"){
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    } else if (myFunc == "Brdcast"){
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    } else if (myFunc == "Nghbors"){
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    } else if (myFunc == "Polls"){
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    } else if (myFunc == "Map"){
+        Manager::Get()->RemoveNode(Five::homeID);
+        output += "200";
+        return output;
+    }
+    output += "300, \"Unsupported message\"";
     return output;
 }
 

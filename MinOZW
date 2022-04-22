@@ -1,5 +1,5 @@
 #!/bin/sh
-LD_PATH=/home/maximilien/five-home-box-v2
+LD_PATH=/home/pierre/Documents/five-home-box-v2
 if test $# -gt 0; then
 	if test $1 == "gdb"; then
 		LD_LIBRARY_PATH="$LD_PATH:$LD_LIBRARY_PATH" gdb .lib/MinOZW
