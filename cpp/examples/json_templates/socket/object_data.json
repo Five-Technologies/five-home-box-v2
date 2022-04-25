@@ -1,4 +1,5 @@
 {
+    "messageLength": 1234,
     "commandName": "setValue",
     "args": [
         "10281902",

@@ -13,6 +13,7 @@ namespace Five {
     const int ZWAVE_PORT = 5101;
     const int PHP_PORT = 5100;
     const char *LOCAL_ADDRESS = "127.0.0.1";
+    const char *LAN_ADDRESS = "192.168.80.140";
     
     struct NodeInfo {
         uint32             m_homeId;
@@ -22,6 +23,7 @@ namespace Five {
         string             m_nodeType;
         chrono::high_resolution_clock::time_point m_sync;
         bool               m_isDead=true;
+        uint8* m_neighbors[29];
     };
 
     const vector<Notification::NotificationType> AliveNotification{
@@ -46,8 +48,56 @@ namespace Five {
         DEBUG
     };
 
+    enum StatusCode {
+        VALID_ok=200,
+        VALID_created=201,
+        VALID_accepted=202,
+        VALID_noContent=204,
+        INVALID_badRequest=400,
+        INVALID_unauthorized=401,
+        INVALID_forbidden=403,
+        INVALID_notFound=404,
+        INVALID_methodNotAllowed=405,
+        INVALID_notAcceptable=406,
+        INVALID_requestTimeout=408,
+        INVALID_imATeapot=418,
+        SERVER_notImplemented=501,
+        SERVER_unavailable=503,
+        SERVER_bandWidthLimitExceeded=509,
+    };
+
+    enum Message { 
+        ArgumentError, 
+        ValueTypeError, 
+        ValueNotFoundError, 
+        NodeNotFoundError, 
+        InvalidArgument,
+        None,
+        InvalidCommand
+    };
+
+    const string messages[] = {
+        "ArgumentError",
+        "ValueTypeError",
+        "ValueNotFoundError",
+        "NodeNotFoundError",
+        "InvalidArgument",
+        "",
+        "InvalidCommand"
+    };
+
+    struct Command {
+        string name;
+        vector<string> arguments;
+        string description;
+    };
+
     list<NodeInfo*> n{};
     list<NodeInfo*>* nodes = &n;
+    uint32 homeID{ 0 }; // Hexadecimal
+    logLevel LEVEL;
+    Driver::ControllerState driverState;
+
     const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume", "Wake-up" };
     const string CACHE_PATH{ "cpp/examples/cache/" };
     const string NODE_LOG_PATH{ CACHE_PATH + "nodes/" };
@@ -55,14 +105,23 @@ namespace Five {
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
     const string PORT{ "/dev/ttyACM0" };
-    const int failedNodeInterval{ 20 }; // Seconds
-    uint32 homeID{ 0 }; // Hexadecimal
+    const int FAILED_NODE_INTERVAL{ 20 }; // Seconds
     const int NEIGHBOR_BITMAP_LENGTH{ 29 }; // Bits
     const int OBSERVER_PERIOD{ 50 }; // Milliseconds
     const int STATE_PERIOD{ 100 }; // Milliseconds
     const int LOOP_TIMEOUT{ 100 }; // Loop counter
-    logLevel LEVEL;
-    Driver::ControllerState driverState;
+
+    const Command COMMANDS[] = {
+        Command{"setValue", {"id", "newValue"}, "Send the value on to update the specific option."},
+        Command{"include", {}, "Set the driver in inclusion mode."},
+        Command{"exclude", {}, "Set the driver in exclusion mode."},
+        Command{"getNode", {"id"}, "Get all node information."},
+        Command{"reset", {"level"}, "Soft/Hard reset the driver."},
+        Command{"heal", {"[nodeId]"}, "Heal the node id if specified, otherwise heal the hole network."},
+        Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
+        Command{"ping", {}, "Placeholder."},
+        Command{"help", {}, "Command list documentation."},
+    };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
         ValueID::ValueType::ValueType_Bool,
@@ -88,6 +147,11 @@ namespace Five {
         "NOTIFICATION", "DRIVER_REMOVED", "CONTROLLER_COMMAND", "NODE_RESET",
         "USER_ALERTS", "MANUFACTURER_SPECIFIC_DB_READY"
     };
+
+    // JSON Serializer
+
+    string nodeToJson(NodeInfo* node);
+    string valueIdToJson(ValueID valueId);
 
     // Config method
     
@@ -159,7 +223,12 @@ namespace Five {
     void server(int port);
     string buildNotifMsg(Notification const *notification);
 
+    // Client
+    
+    string buildPhpMsg(string commandName, vector<string> args);
+
     // Driver
+    
     void statusObserver(list<NodeInfo*> *nodes);
 
 }

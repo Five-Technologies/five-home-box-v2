@@ -148,8 +148,8 @@ void onNotification(Notification const* notification, void* context) {
 	if (notification->GetType() == Notification::Type_ValueChanged) {
 		string msg = buildNotifMsg(notification);
 
-		thread ttemp(sendMsg, LOCAL_ADDRESS, PHP_PORT, msg);
-		ttemp.join();
+		// thread ttemp(sendMsg, "0.0.0.0", PHP_PORT, msg);
+		// ttemp.join();
 	}
 
 	Node::NodeData nodeData;
@@ -667,7 +667,6 @@ void menu() {
 					cout << "\n>>─────|BROADCAST|─────<<\n\n";
 
 					for(it = nodes->begin(); it != nodes->end(); ++it){
-						cout << "1st" << endl;
 						for(it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++){
 							if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
 								cout << "Ping sent...\n";
@@ -881,11 +880,18 @@ void menu() {
 
 							//Sending the value until current value is identical, or until timeout (for sleeping nodes)
 							while (response != *ptr_container && tempCounter-->0) {
+								// if (response.find('.')) {
+								// 	float temp = stof(response);
+								// 	Manager::Get()->SetValue(*it2, temp);
+								// } else {
+								// }
+
 								Manager::Get()->SetValue((*it2), response);
 								Manager::Get()->GetValueAsString((*it2), ptr_container);
 								this_thread::sleep_for(chrono::milliseconds(100));
 								cout << "send " << response << ", " << *ptr_container << "\n";
 							}
+
 							//Manager::Get()->GetValueAsInt((*valueIt), testptr);
 							//cout << *testptr;
 							break;
@@ -1030,7 +1036,7 @@ void CheckFailedNode(string path){
 		list<NodeInfo*>::iterator it;
 		fstream file;
 		bool isIn(0);
-		this_thread::sleep_for(chrono::seconds(failedNodeInterval));
+		this_thread::sleep_for(chrono::seconds(FAILED_NODE_INTERVAL));
 
 		for(it = n.begin(); it != n.end(); it++){
 			// cout << "in node for" << endl;

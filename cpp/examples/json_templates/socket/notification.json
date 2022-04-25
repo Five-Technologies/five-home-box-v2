@@ -1,4 +1,5 @@
 {
+    "messageLength": 1234,
     "notificationType": "VALUE_CHANGED",
     "object": {
         "nodeId": 7,
