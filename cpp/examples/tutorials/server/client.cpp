@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <thread>
 
-#define SOCKET_HEADER_LENGTH 22
+#define SOCKET_HEADER_LENGTH 24
 
 using namespace std;
 
@@ -25,7 +25,6 @@ int main(int argc, char const* argv[])
 	struct sockaddr_in address;
 	int opt = 1;
 	int addrlen = sizeof(address);
-	char headBuffer[SOCKET_HEADER_LENGTH] = { 0 };
 
 	// Creating socket file descriptor
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -47,30 +46,27 @@ int main(int argc, char const* argv[])
 	cout << "Listening on port " << 5100 << endl;
     
     while (true) {
+		char headBuffer[SOCKET_HEADER_LENGTH] = {0};
         new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
-        valread = read(new_socket, headBuffer, SOCKET_HEADER_LENGTH);
-        
+        valread = read(new_socket, headBuffer, SOCKET_HEADER_LENGTH);        
 		string output = "";
-		int msgLength;
 
 		for (int i = 0; i < SOCKET_HEADER_LENGTH; i++) {
 			if (isdigit(headBuffer[i])) {
 				output += headBuffer[i];
 			}
-			headBuffer[i] = 0;
 		}
 
-		msgLength = stoi(output);
-
+		int msgLength = stoi(output);
+		output = headBuffer;
 		char msgBuffer[msgLength] = {0};
 		valread = read(new_socket, msgBuffer, msgLength);
 
 		for (int i = 0; i < msgLength; i++) {
 			output += msgBuffer[i];
-			msgBuffer[i] = 0;
 		}
 
-		cout << "[MESSAGE] length: " << msgLength << endl;
+		cout << "[MSG]" << output << endl;
     }
 
 	return 0;
@@ -90,7 +86,7 @@ int client() {
 
 		// Convert IPv4 and IPv6 addresses from text to binary
 		// form
-		if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+		if (inet_pton(AF_INET, "192.168.80.140", &serv_addr.sin_addr) <= 0) {
 			printf("\nInvalid address/ Address not supported \n");
 		}
 
@@ -98,7 +94,7 @@ int client() {
 			printf("\nConnection Failed \n");
 		}
 
-		cout << "Socket connected with 127.0.0.1:5101\n";
+		cout << "Socket connected with 192.168.80.140:5101\n";
 
 		string response = "";
 		cout << ">> Send message: ";
