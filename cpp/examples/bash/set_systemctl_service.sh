@@ -11,4 +11,7 @@ NotifyAccess=all
 [Install]
 WantedBy=multi-user.target' > /etc/systemd/system/minozw.service
 
-systemctl
+systemctl daemon-reload
+systemctl enable minozw.service
+systemctl start minozw.service &
+systemctl status minozw.service
