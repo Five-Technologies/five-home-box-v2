@@ -119,8 +119,10 @@ namespace Five {
         Command{"reset", {"level"}, "Soft/Hard reset the driver."},
         Command{"heal", {"[nodeId]"}, "Heal the node id if specified, otherwise heal the hole network."},
         Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
-        Command{"ping", {}, "Placeholder."},
+        Command{"ping", {}, ""},
         Command{"help", {}, "Command list documentation."},
+        Command{"_restart", {}, ""},
+        Command{"_reset", {}, ""},
     };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {

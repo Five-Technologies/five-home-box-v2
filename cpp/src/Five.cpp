@@ -710,7 +710,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         Manager::Get()->RemoveNode(Five::homeID);
     } else if (commandName == COMMANDS[3].name) { // getNode
         if ((int)args.size() == 0) {
-            status = StatusCode::
+            status = StatusCode::VALID_ok;
+            msg = Message::None;
             body += "\"nodes\": [ ";
             for (auto it = nodes->begin(); it != nodes->end(); it++) {
                 if (it != nodes->begin()) {
@@ -867,6 +868,12 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
             body += " ], \"description\": \"" + COMMANDS[0].description + "\" }";
         }
         body += " ], ";
+    } else if (commandName == COMMANDS[9].name) { // Restart.
+        status = StatusCode::VALID_ok;
+        msg = Message::None;
+        cout << system(". cpp/examples/bash/restart.sh") << endl;
+    } else if (commandName == COMMANDS[10].name) { // Reset.
+
     }
 
     body = body + "\"status\": " + to_string(status);
