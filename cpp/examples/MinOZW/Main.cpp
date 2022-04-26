@@ -39,6 +39,8 @@ void CheckFailedNode(string path);
 void statusObserver(list<NodeInfo*> *nodes);
 
 int main(int argc, char const *argv[]) {
+	STARTED_AT = getCurrentDatetime().time_since_epoch().count();
+	
 	string response{ "3" };
 	cout << "Start process..." << endl;
 
@@ -113,7 +115,7 @@ int main(int argc, char const *argv[]) {
 	Options::Get()->Lock();
 	Manager::Create();
 	Manager::Get()->AddWatcher(onNotification, NULL);
-	Manager::Get()->AddDriver(PORT);
+	Manager::Get()->AddDriver(DRIVER_PATH);
 
 	thread t3(Five::statusObserver, Five::nodes);
 	t3.detach();
@@ -333,11 +335,11 @@ void onNotification(Notification const* notification, void* context) {
 	// cout << log;
 
 	if (containsType(notification->GetType(), Five::AliveNotification) || notification->GetNodeId() == 1) {
-		if ((containsType(notification->GetType(), Five::AliveNotification) || (nodes->size() == 1 && notification->GetType() == Notification::Type_AllNodesQueried)) && g_menuLocked) {
-			thread t1(menu);
-			t1.detach();
-			g_menuLocked = false;
-		}
+		// if ((containsType(notification->GetType(), Five::AliveNotification) || (nodes->size() == 1 && notification->GetType() == Notification::Type_AllNodesQueried)) && g_menuLocked) {
+		// 	thread t1(menu);
+		// 	t1.detach();
+		// 	g_menuLocked = false;
+		// }
 
 		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
 			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);
