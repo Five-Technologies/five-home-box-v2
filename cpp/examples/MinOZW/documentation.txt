@@ -1,0 +1,7 @@
+─── LES POINTEURS ───
+
+char a = 'A';
+int b = 3;
+
+Un char possède une longueur de 1 byte. Nous avons aperçu que l'adressage se fait sur 6 bytes et que sa valeur est faite sur 1 bytes.
+Il ne faut donc qu'un
