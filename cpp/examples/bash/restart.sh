@@ -1,0 +1,1 @@
+sudo systemctl restart minozw.service
