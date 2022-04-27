@@ -40,7 +40,7 @@ OZWForm.vshost.exe.manifest
 /dotnet/examples/OZWForm/src/bin/x86/Release/OZW_Log.txt
 /dotnet/examples/OZWForm/src/bin/x86/Release
 /dotnet/examples/OZWForm/src/obj/x86/Release
-.gitignore
+# .gitignore
 /cpp/build/windows/winversion.cpp
 .distfiles
 *.dylib
@@ -49,7 +49,7 @@ ozw_config
 .project
 *~
 /.cproject
-/zwscene.xml
+zwscene.xml
 ozwcache_*.xml
 .idea/
 .idea/*
