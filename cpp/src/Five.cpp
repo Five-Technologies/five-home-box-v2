@@ -831,12 +831,12 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         if ((int)args.size() != 2) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        }// else for(int i = 0; i < 2; i++) {
-        //     if (!UT_isDigit(args[i])){
-        //         status = StatusCode::INVALID_badRequest;
-        //         msg = Message::ValueTypeError;
-        //     }
-        // } 
+        }else for(int i = 0; i < 2; i++) {
+            if (!UT_isDigit(args[i])){
+                status = StatusCode::INVALID_badRequest;
+                msg = Message::ValueTypeError;
+            }
+        } 
         if (!UT_isNodeIdExists(args[0])) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::NodeNotFoundError;
