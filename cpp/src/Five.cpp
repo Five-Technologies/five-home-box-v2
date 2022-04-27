@@ -824,7 +824,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
             body += "\"isFailed\": " + to_string(isFailed) + ", ";
         }
     } else if (commandName == COMMANDS[7].name) { // ping
-        string msg;
+        string message;
         int countTrue = 0;
         int countFalse = 0;
 
@@ -850,8 +850,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
                             int counter{stoi(args[1])};
                             while (counter --> 0) {
                                 Manager::Get()->RefreshValue(*it2);
-                                msg = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
-                                sendMsg(LAN_ADDRESS, PHP_PORT,  msg);
+                                message = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
+                                sendMsg(LAN_ADDRESS, PHP_PORT,  message);
                                 if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
                                     countTrue += 1;
                                 } else{
@@ -885,6 +885,34 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
             body += " ], \"description\": \"" + COMMANDS[0].description + "\" }";
         }
         body += " ], ";
+    } else if (commandName == COMMANDS[9].name) { //broadcast
+        string message;
+        int countTrue = 0;
+        int countFalse = 0;
+        bool pinged(false);
+        for(auto it = nodes->begin(); it != nodes->end(); ++it){
+            for(auto it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++){
+                if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
+                    int counter{ 60 };
+                    while (counter --> 0) {
+                        Manager::Get()->RefreshValue(*it2);
+                        this_thread::sleep_for(chrono::milliseconds(500));
+                        message = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
+                        sendMsg(LAN_ADDRESS, PHP_PORT, message);
+                        if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
+                            counter = 0;
+                            pinged = true;
+                        }
+                    }
+                }
+                if(pinged){
+                    countTrue += 1;
+                } else{
+                    countFalse += 1;
+                }
+            }
+        }
+        body += "\"successful nodes\": " + to_string(countTrue) + " \"failed nodes\": " + to_string(countFalse) + ", ";
     }
 
     body = body + "\"status\": " + to_string(status);

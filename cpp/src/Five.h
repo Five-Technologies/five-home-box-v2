@@ -121,6 +121,7 @@ namespace Five {
         Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
         Command{"ping", {}, "Placeholder."},
         Command{"help", {}, "Command list documentation."},
+        Command{"broadcast", {}, "Pings every node to see how many respond"},
     };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
