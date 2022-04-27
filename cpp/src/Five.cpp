@@ -867,8 +867,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
                             int counter{stoi(args[1])};
                             while (counter --> 0) {
                                 Manager::Get()->RefreshValue(*it2);
-                                message = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
-                                sendMsg(LAN_ADDRESS, PHP_PORT,  message);
+                                msg = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
+                                // sendMsg(LOCAL_ADDRESS, PHP_PORT,  msg);
                                 if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
                                     countTrue += 1;
                                 } else{
@@ -978,6 +978,7 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
 
     new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
     valread = read(new_socket, buffer, 1024);
+    cout << valread << endl;
 
     output += "[" + getTime(convertDateTime(chrono::high_resolution_clock::now()));
     output += "] ";
@@ -1007,84 +1008,101 @@ string Five::receiveMsg(sockaddr_in address, int server_fd) {
 
     string msg = buildPhpMsg(myFunc, args);
     cout << msg << endl;
-    sendMsg(inet_ntoa(address.sin_addr), PHP_PORT, msg);
+    cout << inet_ntoa(address.sin_addr) << ":" << address.sin_port << endl;
 
+    char fMessage[msg.length() + 1];
+    strcpy(fMessage, msg.c_str());
 
-    msg += "\"commandName\": ";
-
-    if (myFunc == "Brdcast"){
-        string msg;
-        int countTrue = 0;
-        int countFalse = 0;
-        bool pinged(false);
-        for(auto it = nodes->begin(); it != nodes->end(); ++it){
-            for(auto it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++){
-                if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
-                    int counter{ 60 };
-                    while (counter --> 0) {
-                        Manager::Get()->RefreshValue(*it2);
-                        this_thread::sleep_for(chrono::milliseconds(500));
-                        msg = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
-                        sendMsg(LAN_ADDRESS, PHP_PORT, msg);
-                        if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
-                            counter = 0;
-                            pinged = true;
-                        }
-                    }
-                }
-                if(pinged){
-                    countTrue += 1;
-                } else{
-                    countFalse += 1;
-                }
-            }
-        }
-        output += "200, Broadcast done, successful nodes: " + to_string(countTrue) + " failed nodes: " + to_string(countFalse);
-        return output;
-    } else if (myFunc == "Nghbors"){
-        static uint8 *bitmap[29];
-        for (int i = 0; i < 29; i++) {
-            uint8 bite{ 0 };
-            uint8 *bitmapPixel = &bite;
-            bitmap[i] = bitmapPixel;
-        }
-         if ((int)args.size() != 1) {
-            output += "400, \"ArgError\"";
-            return output;
-        }
-
-        if (!UT_isDigit(args[0])){
-            output += "404, \"ValueTypeError\"";
-            return output;
-        }
-
-        if(!UT_isNodeIdExists(args[0])){
-            output += "404, \"NodeNotFound\"";
-            return output;
-        }
-        output += "200, Neighbor chain:";
-        for (auto it = nodes->begin(); it != nodes->end(); it++) {
-            if (to_string((*it)->m_nodeId) == args[1]) {
-                Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, bitmap);
-                for (int i = 0; i < 29; i++) {
-                    // for (j = 0; j < 8; j++) {
-                    // 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
-                    // }
-                    output += to_string((*bitmap)[i]);
-                }
-            }
-        }
-        return output;
-    } else if (myFunc == "Polls"){
-        Manager::Get()->RemoveNode(Five::homeID);
-        output += "200";
-        return output;
-    } else if (myFunc == "Map"){
-        Manager::Get()->RemoveNode(Five::homeID);
-        output += "200";
-        return output;
+    for (int i = 0; i < (int)msg.length(); i++) {
+        fMessage[i] = msg[i];
     }
-    output += "300, \"Unsupported message\"";
+
+    send(new_socket, fMessage, strlen(fMessage), 0);
+
+    // printf("%s\n", buffer);
+	// 	for (int i = 0; i < 1024; i++) {
+	// 		buffer[i] = 0;
+	// 	}
+    // send(new_socket, "Hello!", strlen("Hello!"), 0);
+    // printf("{ \"messageLength\": 500, Hello message sent\n");
+    // sendMsg(LOCAL_ADDRESS, address.sin_port, msg);
+
+
+    // msg += "\"commandName\": ";
+
+    // if (myFunc == "Brdcast"){
+    //     string msg;
+    //     int countTrue = 0;
+    //     int countFalse = 0;
+    //     bool pinged(false);
+    //     for(auto it = nodes->begin(); it != nodes->end(); ++it){
+    //         for(auto it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++){
+    //             if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
+    //                 int counter{ 60 };
+    //                 while (counter --> 0) {
+    //                     Manager::Get()->RefreshValue(*it2);
+    //                     this_thread::sleep_for(chrono::milliseconds(500));
+    //                     msg = "ask node " + to_string((*it)->m_nodeId) + " ... " + to_string(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)) + "\n";
+    //                     sendMsg(LOCAL_ADDRESS, PHP_PORT, msg);
+    //                     if(Manager::Get()->IsNodeAwake(homeID, (*it)->m_nodeId)){
+    //                         counter = 0;
+    //                         pinged = true;
+    //                     }
+    //                 }
+    //             }
+    //             if(pinged){
+    //                 countTrue += 1;
+    //             } else{
+    //                 countFalse += 1;
+    //             }
+    //         }
+    //     }
+    //     output += "200, Broadcast done, successful nodes: " + to_string(countTrue) + " failed nodes: " + to_string(countFalse);
+    //     return output;
+    // } else if (myFunc == "Nghbors"){
+    //     static uint8 *bitmap[29];
+    //     for (int i = 0; i < 29; i++) {
+    //         uint8 bite{ 0 };
+    //         uint8 *bitmapPixel = &bite;
+    //         bitmap[i] = bitmapPixel;
+    //     }
+    //      if ((int)args.size() != 1) {
+    //         output += "400, \"ArgError\"";
+    //         return output;
+    //     }
+
+    //     if (!UT_isDigit(args[0])){
+    //         output += "404, \"ValueTypeError\"";
+    //         return output;
+    //     }
+
+    //     if(!UT_isNodeIdExists(args[0])){
+    //         output += "404, \"NodeNotFound\"";
+    //         return output;
+    //     }
+    //     output += "200, Neighbor chain:";
+    //     for (auto it = nodes->begin(); it != nodes->end(); it++) {
+    //         if (to_string((*it)->m_nodeId) == args[1]) {
+    //             Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, bitmap);
+    //             for (int i = 0; i < 29; i++) {
+    //                 // for (j = 0; j < 8; j++) {
+    //                 // 	cout << (bitset<8>((*bitmap)[i]))[i] << "  ";
+    //                 // }
+    //                 output += to_string((*bitmap)[i]);
+    //             }
+    //         }
+    //     }
+    //     return output;
+    // } else if (myFunc == "Polls"){
+    //     Manager::Get()->RemoveNode(Five::homeID);
+    //     output += "200";
+    //     return output;
+    // } else if (myFunc == "Map"){
+    //     Manager::Get()->RemoveNode(Five::homeID);
+    //     output += "200";
+    //     return output;
+    // }
+    // output += "300, \"Unsupported message\"";
     return output;
 }
 
@@ -1137,7 +1155,7 @@ int Five::sendMsg(const char* address, const int port, string message) {
     }
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        printf("\nConnection Failed \n");
+        printf("Connection Failed \n");
         return EXIT_FAILURE;
     }
 
