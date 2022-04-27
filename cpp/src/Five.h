@@ -99,12 +99,13 @@ namespace Five {
     Driver::ControllerState driverState;
 
     const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume", "Wake-up" };
-    const string CACHE_PATH{ "cpp/examples/cache/" };
-    const string NODE_LOG_PATH{ CACHE_PATH + "nodes/" };
-    const string FAILED_NODE_PATH{ CACHE_PATH + "failed_nodes.log" };
-    const string CPP_PATH{ "cpp/" };
-    const string CONFIG_PATH{ "config/" };
-    const string DRIVER_PATH{ "/dev/ttyACM1" };
+    const char *CACHE_PATH{ "cpp/examples/cache/" };
+    const char *NODE_LOG_PATH{ *CACHE_PATH + "nodes/" };
+    const char *FAILED_NODE_PATH{ *CACHE_PATH + "failed_nodes.log" };
+    const char *CPP_PATH{ "cpp/" };
+    const char *CONFIG_PATH{ "config/" };
+    const char *CONFIG_FILE_PATH{ *CACHE_PATH + ".config" };
+    string DRIVER_PATH;
     const int FAILED_NODE_INTERVAL{ 20 }; // Seconds
     const int NEIGHBOR_BITMAP_LENGTH{ 29 }; // Bits
     const int OBSERVER_PERIOD{ 50 }; // Milliseconds

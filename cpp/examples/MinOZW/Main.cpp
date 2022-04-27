@@ -115,6 +115,22 @@ int main(int argc, char const *argv[]) {
 	Options::Get()->Lock();
 	Manager::Create();
 	Manager::Get()->AddWatcher(onNotification, NULL);
+
+	cout << system("echo $PWD") << endl;
+	const char *command = "ls -l /dev/ttyACM* | awk {'print($10)'} > cpp/examples/cache/.config";
+	cout << "command: " << command << endl;
+	cout << system(command) << endl;
+
+	fstream my_file;
+	my_file.open("cpp/examples/cache/.config");
+	if (my_file.is_open()) {
+		while(my_file.good()) {
+			my_file >> DRIVER_PATH;
+		}
+	}
+	my_file.close();
+
+
 	Manager::Get()->AddDriver(DRIVER_PATH);
 
 	thread t3(Five::statusObserver, Five::nodes);
@@ -141,7 +157,7 @@ void onNotification(Notification const* notification, void* context) {
 	string valueLabel;
 	uint8 cc_id{ valueID.GetCommandClassId() };
 	string cc_name{ Manager::Get()->GetCommandClassName(cc_id) };
-	string path = Five::NODE_LOG_PATH + "node_" + to_string(notification->GetNodeId()) + ".log";
+	string path = *NODE_LOG_PATH + "node_" + to_string(notification->GetNodeId()) + ".log";
 	string container;
 	string *ptr_container = &container;
 	string notifType{ "" };
