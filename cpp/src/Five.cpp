@@ -688,20 +688,23 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
     Message msg = Message::InvalidCommand;
     StatusCode status = StatusCode::INVALID_badRequest;
     ValueID valueID;
+    
+    auto awakeTime = (getCurrentDatetime().time_since_epoch().count() - STARTED_AT) / 1000000000;
 
     string body = "";
-    body = body + "\"commandName\": \"" + commandName + "\", ";
-    body = body + "\"args\": [";
+    body += "\"upTime\": " + to_string(awakeTime) + ", ";
+    body += "\"commandName\": \"" + commandName + "\", ";
+    body += "\"args\": [";
 
     for (auto it = args.begin(); it != args.end(); it++) {
         if (it != args.begin()) {
-            body = body + ", ";
+            body += ", ";
         }
 
-        body = body + '\"' + *it + '\"';
+        body += '\"' + *it + '\"';
     }
 
-    body = body + "], \"body\": { ";
+    body += "], \"body\": { ";
 
     if (commandName == COMMANDS[0].name) { // setValue
         if (args.size() != 2) {
@@ -728,7 +731,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         Manager::Get()->RemoveNode(Five::homeID);
     } else if (commandName == COMMANDS[3].name) { // getNode
         if ((int)args.size() == 0) {
-            status = StatusCode::INVALID_badRequest;
+            status = StatusCode::VALID_ok;
+            msg = Message::None;
             body += "\"nodes\": [ ";
             for (auto it = nodes->begin(); it != nodes->end(); it++) {
                 if (it != nodes->begin()) {
@@ -749,6 +753,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
             msg = Message::NodeNotFoundError;
         } else {
             status = StatusCode::VALID_ok;
+            msg = Message::None;
 
             for(auto it = nodes->begin(); it != nodes->end(); (it)++){
                 if (stoi(args[0]) == ((*it)->m_nodeId)) {
@@ -867,6 +872,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         }
         body = "\"Ping sent\": " + args[1] + ", \"received\": " + to_string(countTrue) + ", \"failed\": " + to_string(countFalse) + ", ";
     } else if (commandName == COMMANDS[8].name) { // help
+        status = StatusCode::VALID_ok;
+        msg = Message::None;
         int cmdCounter = sizeof(COMMANDS)/sizeof(COMMANDS[0]);
 
         body += "\"commands\": [ ";
@@ -882,7 +889,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
                 }
                 body += '\"' + *it + '\"';
             }
-            body += " ], \"description\": \"" + COMMANDS[0].description + "\" }";
+            body += " ], \"description\": \"" + COMMANDS[i].description + "\" }";
         }
         body += " ], ";
     } else if (commandName == COMMANDS[9].name) { //broadcast
@@ -913,10 +920,20 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
             }
         }
         body += "\"successful nodes\": " + to_string(countTrue) + " \"failed nodes\": " + to_string(countFalse) + ", ";
+    } else if (commandName == COMMANDS[10].name) { // Restart.
+        status = StatusCode::VALID_ok;
+        msg = Message::None;
+        Manager::Get()->RemoveDriver(DRIVER_PATH);
+        cout << system("sudo systemctl restart minozw.service") << endl;
+    } else if (commandName == COMMANDS[11].name) { // Reset.
+        status = StatusCode::VALID_ok;
+        msg = Message::None;
+        Manager::Get()->RemoveDriver(DRIVER_PATH);
+        cout << system("./cpp/examples/bash/reset_key.sh") << endl;
     }
 
-    body = body + "\"status\": " + to_string(status);
-    body = body + ", \"message\": \"" + messages[msg] + "\" } }";
+    body += "\"status\": " + to_string(status);
+    body += ", \"message\": \"" + messages[msg] + "\" } }";
 
     int body_length = body.length();
     body = "{ \"messageLength\": " + to_string(body_length + to_string(body_length).length()) + ", " + body;

@@ -104,7 +104,7 @@ namespace Five {
     const string FAILED_NODE_PATH{ CACHE_PATH + "failed_nodes.log" };
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
-    const string PORT{ "/dev/ttyACM0" };
+    const string DRIVER_PATH{ "/dev/ttyACM1" };
     const int FAILED_NODE_INTERVAL{ 20 }; // Seconds
     const int NEIGHBOR_BITMAP_LENGTH{ 29 }; // Bits
     const int OBSERVER_PERIOD{ 50 }; // Milliseconds
@@ -117,11 +117,13 @@ namespace Five {
         Command{"exclude", {}, "Set the driver in exclusion mode."},
         Command{"getNode", {"id"}, "Get all node information."},
         Command{"reset", {"level"}, "Soft/Hard reset the driver."},
-        Command{"heal", {"[nodeId]"}, "Heal the node id if specified, otherwise heal the hole network."},
+        Command{"heal", {"(nodeIdd)"}, "Heal the node id if specified, otherwise heal the hole network."},
         Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
-        Command{"ping", {}, "Placeholder."},
+        Command{"ping", {}, "No description"},
         Command{"help", {}, "Command list documentation."},
         Command{"broadcast", {}, "Pings every node to see how many respond"},
+        Command{"_restart", {}, "Restart the process with Bash."},
+        Command{"_reset", {}, "Remove log files, reset the ZWave driver and restart the process with Bash."},
     };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
@@ -232,6 +234,7 @@ namespace Five {
     
     void statusObserver(list<NodeInfo*> *nodes);
 
+    auto STARTED_AT = getCurrentDatetime().time_since_epoch().count();
 }
 
 #endif

@@ -94,8 +94,6 @@ int client() {
 			printf("\nConnection Failed \n");
 		}
 
-		cout << "Socket connected with 192.168.80.140:5101\n";
-
 		string response = "";
 		cout << ">> Send message: ";
 
