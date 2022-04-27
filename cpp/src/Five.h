@@ -13,7 +13,6 @@ namespace Five {
     const int ZWAVE_PORT = 5101;
     const int PHP_PORT = 5100;
     const char *LOCAL_ADDRESS = "127.0.0.1";
-    const char *LAN_ADDRESS = "192.168.80.140";
     
     struct NodeInfo {
         uint32             m_homeId;

@@ -117,6 +117,7 @@ int main(int argc, char const *argv[]) {
 	Manager::Get()->AddWatcher(onNotification, NULL);
 
 	cout << system("echo $PWD") << endl;
+	cout << system("rm cpp/examples/cache/.config") << endl;
 	const char *command = "ls -l /dev/ttyACM* | awk {'print($10)'} > cpp/examples/cache/.config";
 	cout << "command: " << command << endl;
 	cout << system(command) << endl;
