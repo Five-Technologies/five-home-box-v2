@@ -121,7 +121,7 @@ namespace Five {
         Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
         Command{"ping", {}, "No description"},
         Command{"help", {}, "Command list documentation."},
-        Command{"broadcast", {}, "Pings every node to see how many respond"},
+        Command{"brdcast", {}, "Pings every node to see how many respond"},
         Command{"_restart", {}, "Restart the process with Bash."},
         Command{"_reset", {}, "Remove log files, reset the ZWave driver and restart the process with Bash."},
     };
