@@ -1,3 +1,4 @@
+.vscode
 .dep/
 .lib/
 MinOZW
@@ -48,8 +49,8 @@ ozw_config
 .project
 *~
 /.cproject
-/zwscene.xml
-/ozwcache_*.xml
+zwscene.xml
+ozwcache_*.xml
 .idea/
 .idea/*
 ozw_config
