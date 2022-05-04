@@ -6,9 +6,12 @@
 #include <fstream>
 #include "Five.h"
 
+#include "../../../json/single_include/nlohmann/json.hpp"
+
 using namespace OpenZWave;
 using namespace Five;
 using namespace std;
+using namespace nlohmann;
 
 bool g_menuLocked{true};
 bool g_checkLocked(1);
@@ -17,37 +20,20 @@ int main(int argc, char const *argv[]) {
 	fstream my_file;
 	string response;
 
+	// my_file.open("cpp/examples/cache/configs/test.yaml");
+	// if (my_file.is_open()) {
+	// 	string output = "";
+	// 	while (my_file.good()) {
+	// 		my_file >> output;
+	// 	}
+	// }
+	// my_file.close();
+
+	// auto j = json::parse(output);
+	// cout << j.dump(4) << endl;
+
 	Five::startedAt = getCurrentDatetime();
 	
-	response = "3";
-
-	// cout << ">>──── LOG LEVEL ────<<\n\n"
-	// 	 << "     0. NONE\n"
-	// 	 << "     1. WARNING\n"
-	// 	 << "     2. INFO\n"
-	// 	 << "     3. DEBUG\n\n"
-	// 	 << "Select the log level (0, 1, 2, 3): ";
-	// cin >> response;
-
-	switch (stoi(response))
-	{
-	case 0:
-		LEVEL = logLevel::NONE;
-		break;
-	case 1:
-		LEVEL = logLevel::WARNING;
-		break;
-	case 2:
-		LEVEL = logLevel::INFO;
-		break;
-	case 3:
-		LEVEL = logLevel::DEBUG;
-		break;
-	default:
-		LEVEL = logLevel::NONE;
-		break;
-	}
-
 	pthread_mutexattr_t mutexattr;
 
 	// Initialize the mutex ATTRIBUTES with the default value.
@@ -85,31 +71,30 @@ int main(int argc, char const *argv[]) {
 	Manager::Create();
 	Manager::Get()->AddWatcher(onNotification, NULL);
 
-	const char *cmd01 = "rm cpp/examples/cache/.config";
-	const char *cmd02 = "ls -l /dev/ttyACM* | awk {'print($10)'} > cpp/examples/cache/.config";
+	Five::getMode(currentMode);
+	writeLog(Level::INFO, __FILE__, __LINE__, "mode", currentMode->name);
+	Five::getDriver(&driverPath);
+	writeLog(Level::DEBUG, __FILE__, __LINE__, "driver", driverPath);
 
-	cout << "[bash " << system(cmd01) << "] " << cmd01 << endl;
-	cout << "[bash " << system(cmd02) << "] " << cmd02 << endl;
+	json j;
+	j["driver"] = driverPath;
+	j["mode"]["name"] = currentMode->name;
+	j["mode"]["log"] = levels[currentMode->log];
+	j["mode"]["pollInterval"] = currentMode->pollInterval;
+	ofstream o("cpp/examples/cache/config.json");
+	cout << o.is_open() << endl;
+	o << setw(2) << j << endl;
 
-	my_file.open("cpp/examples/cache/.config");
-	
-	if (my_file.is_open()) {
-		while(my_file.good()) {
-			my_file >> DRIVER_PATH;
-		}
-	}
 
-	my_file.close();
-
-	Manager::Get()->AddDriver(DRIVER_PATH);
+	Manager::Get()->AddDriver(driverPath);
 
 	thread t3(Five::statusObserver, nodes);
 	thread t4(server, ZWAVE_PORT);
-	thread t2(Five::CheckFailedNode, FAILED_NODE_PATH);
+	// thread t2(Five::CheckFailedNode, FAILED_NODE_PATH);
 	
 	t3.detach();
 	t4.detach();
-	t2.detach();
+	// t2.detach();
 	
 	pthread_cond_wait(&initCond, &initMutex);
 	pthread_mutex_unlock(&g_criticalSection);
