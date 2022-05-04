@@ -1240,10 +1240,21 @@ string convertToString(char* a, int size)
 //Converts the information of a node into json format suitable to send
 string Five::nodeToJson(NodeInfo* node) {
     string msg = "";
+	uint8* association;
+	uint32 assoNb = Manager::Get()->GetAssociations(homeID, node->m_nodeId, 2, &association);
     msg += "{ \"nodeId\": " + to_string(node->m_nodeId);
     msg += ", \"productName\": \"" + node->m_name;
     msg += "\", \"nodeDead\": " + to_string(node->m_isDead);
-    msg += ", \"lastUpdate\": \"";
+	msg += ", \"groupsNumber\": " + to_string(Manager::Get()->GetNumGroups(homeID, node->m_nodeId));
+	msg += ", \"nodeAssociations\": " + to_string(assoNb);
+	msg += ", \"nodeAssociated\": \"";
+	for(int i = 0; i < (int)assoNb; i++){
+		if(i != 0) msg += ", ";
+		msg += to_string(association[i]);
+	}
+
+	delete association;
+    msg += "\", \"lastUpdate\": \"";
 
     list<ValueID> values = node->m_values;
     string date = getDate(convertDateTime(node->m_sync));

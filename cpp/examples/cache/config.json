@@ -1,0 +1,8 @@
+{
+  "driver": "/dev/ttyACM0",
+  "mode": {
+    "log": "DEBUG",
+    "name": "DEV",
+    "pollInterval": 500
+  }
+}
