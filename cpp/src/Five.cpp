@@ -1461,7 +1461,7 @@ void Five::statusObserver(list<NodeInfo*> *nodes) {
 			for (it2 = valueIDs.begin(); it2 != valueIDs.end(); it2++) {
 				string label = Manager::Get()->GetValueLabel(*it2);
 
-				if (label.find("Wake-up Interval") != string::npos) { // The object has a sleep interval.
+				if (label.find("Wake-up Interval") != string::npos) { // The object has a sleep intervale.
 					Manager::Get()->GetValueAsInt(*it2, &wakeUpInterval); // Stores the object wakeUpInteral value.
 
 					// Check if (now - lastUpdate) is greater than the wakeUpInterval

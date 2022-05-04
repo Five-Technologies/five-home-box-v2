@@ -205,7 +205,7 @@ namespace Five {
     bool setBool(ValueID valueId);
     bool setButton(ValueID valueId);
 
-    // Node methods
+    // Node methodses
     
     bool isNodeAlive(Notification notif, list<NodeInfo*> *nodes, vector<Notification::NotificationType> aliveNotifications);
     bool isNodeNew(uint8 nodeID, list<NodeInfo*> *nodes);
