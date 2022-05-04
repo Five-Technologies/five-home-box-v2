@@ -13,11 +13,10 @@ namespace Five {
     pthread_cond_t initCond = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t initMutex;
 
-
     const int ZWAVE_PORT = 5101;
     const int PHP_PORT = 5100;
     const char *LOCAL_ADDRESS = "127.0.0.1";
-    
+
     struct NodeInfo {
         uint32             m_homeId;
         uint8              m_nodeId;
@@ -44,11 +43,33 @@ namespace Five {
         OFF=0
     };
 
-    enum logLevel {
-        NONE,
-        WARNING,
+    enum Level {
+        ERROR,
+        NOTICE,
         INFO,
         DEBUG
+    };
+
+    struct Mode {
+        string name;
+        Level log;
+        int pollInterval;
+    };
+
+    Mode *modes[] = {
+        new Mode{"DEV", Level::DEBUG, 500},
+        new Mode{"TEST", Level::DEBUG, 200},
+        new Mode{"PROD", Level::ERROR, 500},
+        new Mode{"HEY", Level::INFO, 200}
+    };
+
+    Mode *currentMode = modes[0];
+    
+    const string levels[] = {
+        "ERROR",
+        "NOTICE",
+        "INFO",
+        "DEBUG"
     };
 
     enum StatusCode {
@@ -76,8 +97,7 @@ namespace Five {
         NodeNotFoundError, 
         InvalidArgument,
         None,
-        InvalidCommand,
-        ArgumentWrongType
+        InvalidCommand
     };
 
     const string messages[] = {
@@ -87,8 +107,7 @@ namespace Five {
         "NodeNotFoundError",
         "InvalidArgument",
         "",
-        "InvalidCommand",
-        "ArgumentWrongType"
+        "InvalidCommand"
     };
 
     struct Command {
@@ -100,7 +119,7 @@ namespace Five {
     list<NodeInfo*> n{};
     list<NodeInfo*>* nodes = &n;
     uint32 homeID{ 0 }; // Hexadecimal
-    logLevel LEVEL;
+    Level logs;
     Driver::ControllerState driverState;
 
     const list<string> TYPES{ "Color", "Switch", "Level", "Duration", "Volume", "Wake-up" };
@@ -110,8 +129,9 @@ namespace Five {
     const string FAILED_NODE_PATH{ CACHE_PATH + "failed_nodes.log" };
     const string CPP_PATH{ "cpp/" };
     const string CONFIG_PATH{ "config/" };
+    const string JOURNAL{ CACHE_PATH + "journal.log" };
     
-    string DRIVER_PATH;
+    string driverPath;
     bool menuLocked = true;
 
     const int FAILED_NODE_INTERVAL{ 20 }; // Seconds
@@ -125,17 +145,15 @@ namespace Five {
         Command{"include", {}, "Set the driver in inclusion mode."},
         Command{"exclude", {}, "Set the driver in exclusion mode."},
         Command{"getNode", {"id"}, "Get all node information."},
-        Command{"reset", {"level"}, "Soft/Hard reset the driver."},
+        Command{"reset", {"soft|hard|bash"}, "Reset the driver."},
         Command{"heal", {"(nodeIdd)"}, "Heal the node id if specified, otherwise heal the hole network."},
         Command{"isFailed", {"nodeId"}, "Check if the node is able to return a response."},
         Command{"ping", {}, "No description"},
         Command{"help", {}, "Command list documentation."},
-        Command{"brdcast", {}, "Pings every node to see how many respond"},
-        Command{"_restart", {}, "Restart the process with Bash."},
-        Command{"_reset", {}, "Remove log files, reset the ZWave driver and restart the process with Bash."},
-        Command{"_setLvl", {"level"}, "[NONE, WARNING, INFO, DEBUG] Restart the ZWave driver with the selected level with Bash."},
-        Command{"map", {}, "Returns the Neighbors Map as response"},
-
+        Command{"brdcast", {}, "Pings every node to see how many respond."},
+        Command{"reboot", {}, "Restart the zwave server."},
+        Command{"setMode", {"DEV|TEST|PROD"}, "Update the process mode."},
+        Command{"shutdown", {}, "Stop the zwave server. You will must restart it locally."},
     };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
@@ -147,12 +165,10 @@ namespace Five {
     };
 
     const string STATES[]{
-        "Normal", "Starting", "Cancel", "Normal",
+        "Normal", "Starting", "Cancel", "Error",
         "Waiting", "Sleeping", "InProgress", "Completed",
         "Failed", "NodeOK", "NodeFailed"
     };
-
-    const vector<Driver::ControllerState> ADD_RM_STATES = {Driver::ControllerState_Starting, Driver::ControllerState_Waiting, Driver::ControllerState_InProgress};
 
     const string NOTIFICATIONS[] {
         "VALUED_ADDED", "VALUE_REMOVED", "VALUE_CHANGED", "VALUE_REFRESHED", "GROUP",
@@ -179,7 +195,7 @@ namespace Five {
 
     // Config method
     
-    bool setSwitch(ValueID valueID, string answer);
+    bool setSwitch(ValueID valueID, bool state);
     bool setIntensity(ValueID valueID, int intensity);
     bool setHexColor(ValueID valueID, string hexColor);
     bool setList(ValueID valueID);
@@ -187,7 +203,7 @@ namespace Five {
     bool setDuration(ValueID valueID, int duration);
     bool setInt(ValueID valueId);
     bool setBool(ValueID valueId);
-    bool setButton(ValueID valueId, string input);
+    bool setButton(ValueID valueId);
 
     // Node methods
     
@@ -230,7 +246,6 @@ namespace Five {
     // Driver methods
     
     string getDriverData(uint32 homeID);
-    bool containsControllerType(Driver::ControllerState needle, vector<Driver::ControllerState> haystack);
 
     // Time methods
     
@@ -244,25 +259,26 @@ namespace Five {
 
     string convertToString(char* a, int size);
     int sendMsg(const char* address, const int port, string message);
-    string receiveMsg(sockaddr_in address, int server_fd);
+    int receiveMsg(sockaddr_in address, int server_fd);
     void server(int port);
     string buildNotifMsg(Notification const *notification);
     bool containsStatus(StatusCode needle, vector<StatusCode> haystack);
 
     // Client
     
-    string buildPhpMsg(string commandName, vector<string> args);
+    string buildPhpMsg(string commandName, vector<string> args, int *running);
 
     // Unit Tests
 
-    bool UT_isInt(string arg);
+    bool UT_isDigit(string arg);
     bool UT_isValueIdExists(string id, ValueID* ptr_valueID);
     bool UT_isNodeIdExists(string id);
-    bool UT_isDecimal(string arg);
-    bool UT_isBoolean(string arg);
-    bool UT_isButton(string arg);
 
     auto startedAt = getCurrentDatetime();
+
+    void writeLog(Level level, string file, int line, string key, string value);
+    void getMode(Mode *container);
+    void getDriver(string *driver_path);
 }
 
 #endif
