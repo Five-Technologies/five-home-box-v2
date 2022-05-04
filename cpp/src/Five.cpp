@@ -84,10 +84,8 @@ bool Five::valueChanged(Notification const* notification, list<NodeInfo*> *nodes
 }
 
 // Allows to turn on or off any object who has a switch parameter.
-bool Five::setSwitch(ValueID valueId, bool state) {   
-    string answer;
-    cout << "true(1) or false(0) ?" << endl;
-	cin >> answer;
+bool Five::setSwitch(ValueID valueId, string answer) {   
+    bool state(false);
 
     if (answer=="true" || answer=="True" || answer == "1") {
         state = true;
@@ -176,7 +174,7 @@ bool Five::setInt(ValueID valueId) {
 	cout << "Please enter a value in Int: " << endl;
     cin >> response;
 
-	if (UT_isDigit(response)) {
+	if (UT_isInt(response)) {
 		Manager::Get()->SetValue(valueId, response);
     	return true;
 	}
@@ -210,14 +208,12 @@ bool Five::setBool(ValueID valueId) {
 }
 
 // Allows to push or release a button parameter.
-bool Five::setButton(ValueID valueId){
-    string input;
-    cout << "Press a key to push button" << endl;
-    cin >> input;
-    Manager::Get()->PressButton(valueId);
-    cout << "Press a key to release button" << endl;
-    cin >> input;
-    Manager::Get()->ReleaseButton(valueId);
+bool Five::setButton(ValueID valueId, string input){
+	if(input == "on" || input == "On" || input == "ON" || input == "1"){
+	    Manager::Get()->PressButton(valueId);
+	} else{
+	    Manager::Get()->ReleaseButton(valueId);
+	}
     return true;
 }
 
@@ -282,6 +278,16 @@ bool Five::containsType(Notification::NotificationType needle, vector<Notificati
 
 //Check if status <needle> is in list <haystack>
 bool Five::containsStatus(StatusCode needle, vector<StatusCode> haystack) {
+    for (int i = 0; i < int(haystack.capacity()); i++) {
+        if (needle == haystack[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+//Check if type <needle> is in list <haystack>
+bool Five::containsControllerType(Driver::ControllerState needle, vector<Driver::ControllerState> haystack) {
     for (int i = 0; i < int(haystack.capacity()); i++) {
         if (needle == haystack[i]) {
             return true;
@@ -525,7 +531,7 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
         {
             counterValue++;
             if (*choice == counterValue) {
-                setButton((*it2));
+                //setButton((*it2));
                 return true;
             }
 
@@ -555,7 +561,7 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
 
                     //Checking value type to choose the right method
                     if(valLabel.find("Switch") != string::npos){
-                        setSwitch((*it2), true);
+                        setSwitch((*it2), "true");
                         return true;
                     }else if(valLabel.find("Color") != string::npos && (*it2).GetType() == ValueID::ValueType_String)
                     {
@@ -624,7 +630,7 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
                     } else if (valLabel.find("Duration") != string::npos) {
                         cout << "Set duration: ";
 						cin >> response;
-						if (UT_isDigit(response)) {
+						if (UT_isInt(response)) {
 							setDuration(*it2, stoi(response));
 						}
                         return true;
@@ -645,7 +651,7 @@ bool Five::newSetValue(int* choice, list<NodeInfo*>::iterator* it, list<ValueID>
 }
 
 //Checks if an arg contains digits or not
-bool Five::UT_isDigit(string arg) {
+bool Five::UT_isInt(string arg) {
     int i;
 
     for (i=0; i<(int)arg.size(); i++) {
@@ -656,6 +662,36 @@ bool Five::UT_isDigit(string arg) {
     return true;
 }
 
+bool Five::UT_isDecimal(string arg) {
+    int i;
+
+    for (i=0; i<(int)arg.size(); i++) {
+        if (!isdigit(arg[i]) || arg[i] != '.') {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Five::UT_isBoolean(string arg) {
+	list<string> list = {"False", "True", "false", "true", "0", "1"};
+    for (auto it = list.begin(); it != list.end(); it++) {
+        if (arg == (*it)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Five::UT_isButton(string arg) {
+	list<string> list = {"On", "Off", "on", "off", "ON", "OFF", "0", "1"};
+    for (auto it = list.begin(); it != list.end(); it++) {
+        if (arg == (*it)) {
+            return true;
+        }
+    }
+    return false;
+}
 //Checks if the given id corresponds to an existing ValueID, and if yes places it in pointer
 bool Five::UT_isValueIdExists(string id, ValueID* ptr_valueID) {
     bool valueIdFound(false);
@@ -702,6 +738,8 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
     Message msg = Message::InvalidCommand;
     StatusCode status = StatusCode::INVALID_badRequest;
     ValueID valueID;
+	static bool nodeInEx = false;
+	string stateNode;
     
     auto awakeTime = (getCurrentDatetime().time_since_epoch().count() - startedAt.time_since_epoch().count()) / 1000000000;
     string body = "";
@@ -720,36 +758,134 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
     body += "], \"body\": { ";
 
     if (commandName == COMMANDS[0].name) { // setValue
+		 ValueID::ValueType type;
         if ((int)args.size() < 2) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-		} else if (!UT_isDigit(args[0])) {
+		} else if (!UT_isInt(args[0])) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::InvalidArgument;
         } else if (!UT_isValueIdExists(args[0], &valueID)) {
             status = StatusCode::INVALID_notFound;
             msg = Message::ValueNotFoundError;
-        } else if((int)args.size() > 2){
-			cout << "test" << endl;
-			status = StatusCode::VALID_accepted;
-            msg = Message::None;
-			for(int i = 2; i < (int)args.size(); i++ ){
-				args[1] += " " + args[i];
+        } else if((int)args.size() > 2 && valueID.GetType() != ValueID::ValueType_List){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		} else {
+			type = valueID.GetType();
+			vector<string> listItems;
+			bool verifList = false;
+			switch(type){
+				case ValueID::ValueType_Int:
+					if(!UT_isInt(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else{
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						Manager::Get()->SetValue(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_Decimal:
+					if(!UT_isDecimal(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else{
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						Manager::Get()->SetValue(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_Bool:
+					if(!UT_isBoolean(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else{
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						setSwitch(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_Button:
+					if(!UT_isButton(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else {
+						msg = Message::None;
+						status = StatusCode::VALID_accepted;
+						setButton(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_Short:
+					if(!UT_isInt(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else{
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						Manager::Get()->SetValue(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_Byte:
+					if(!UT_isInt(args[1])){
+						status = StatusCode::INVALID_badRequest;
+						msg = Message::ArgumentWrongType;
+					} else{
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						Manager::Get()->SetValue(valueID, args[1]);
+					}
+					break;
+				case ValueID::ValueType_List:
+					Manager::Get()->GetValueListItems(valueID, &listItems);
+					if((int)args.size() > 2 && valueID.GetType() == ValueID::ValueType_List){
+						for(int i = 2; i < (int)args.size(); i++ ){
+							args[1] += " " + args[i];
+						}
+					}
+
+					for(auto it = listItems.begin(); it != listItems.end(); it++){
+						if(args[1] == *it){
+							verifList = true;
+						}
+					}
+
+					if(!verifList){
+						status = StatusCode::INVALID_badRequest;
+            			msg = Message::ArgumentError;
+					}else {
+						status = StatusCode::VALID_accepted;
+						msg = Message::None;
+						Manager::Get()->SetValue(valueID, args[1]);
+					}
+					break;
+				default:
+					status = StatusCode::VALID_accepted;
+					msg = Message::None;
+					Manager::Get()->SetValue(valueID, args[1]);
+					break;
 			}
-			Manager::Get()->SetValue(valueID, args[1]);
-		} else{
-            status = StatusCode::VALID_accepted;
-            msg = Message::None;
-            Manager::Get()->SetValue(valueID, args[1]);
         }
     } else if (commandName == COMMANDS[1].name) { // include
-        status = StatusCode::VALID_created;
-        msg = Message::None;
-        Manager::Get()->AddNode(Five::homeID, false);
+		if((int)args.size() != 0){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		}else{
+			nodeInEx = true;
+			status = StatusCode::VALID_created;
+			msg = Message::None;
+			Manager::Get()->AddNode(Five::homeID, false);
+		}
     } else if (commandName == COMMANDS[2].name) { // exclude
-        status = StatusCode::VALID_accepted;
-        msg = Message::None;
-        Manager::Get()->RemoveNode(Five::homeID);
+		if((int)args.size() != 0){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		}else{
+			nodeInEx = false;
+			status = StatusCode::VALID_accepted;
+			msg = Message::None;
+			Manager::Get()->RemoveNode(Five::homeID);
+		}
     } else if (commandName == COMMANDS[3].name) { // getNode
         if ((int)args.size() == 0) {
             status = StatusCode::VALID_ok;
@@ -766,7 +902,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         } else if ((int)args.size() != 1) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        } else  if (!UT_isDigit(args[0])){
+        } else  if (!UT_isInt(args[0])){
             status = StatusCode::INVALID_badRequest;
             msg = Message::ValueTypeError;
         } else if(!UT_isNodeIdExists(args[0])){
@@ -786,7 +922,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         if ((int)args.size() != 1) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        } else if (UT_isDigit(args[0])) {
+        } else if (UT_isInt(args[0])) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ValueTypeError;
         } else if (args[0] == "hard") {
@@ -809,7 +945,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         } else if ((int)args.size() != 1) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        } else if (!UT_isDigit(args[0])) {
+        } else if (!UT_isInt(args[0])) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ValueTypeError;
         } else if (!UT_isNodeIdExists(args[0])) {
@@ -830,7 +966,7 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         if ((int)args.size() != 1) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        } else if (!UT_isDigit(args[0])){
+        } else if (!UT_isInt(args[0])){
             status = StatusCode::INVALID_badRequest;
             msg = Message::ValueTypeError;
         } else if(!UT_isNodeIdExists(args[0])){
@@ -857,13 +993,13 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         if ((int)args.size() != 2) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
-        }else for(int i = 0; i < 2; i++) {
-            if (!UT_isDigit(args[i])){
-                status = StatusCode::INVALID_badRequest;
-                msg = Message::ValueTypeError;
-            }
-        } 
-        if (!UT_isNodeIdExists(args[0])) {
+        }else if(!UT_isInt(args[0])) {
+			status = StatusCode::INVALID_badRequest;
+			msg = Message::ValueTypeError;
+        } else if(!UT_isInt(args[1])) {
+			status = StatusCode::INVALID_badRequest;
+			msg = Message::ValueTypeError;
+        } else if (!UT_isNodeIdExists(args[0])) {
             status = StatusCode::INVALID_badRequest;
             msg = Message::NodeNotFoundError;
         } else {
@@ -893,37 +1029,45 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
         }
         body = "\"Ping sent\": " + args[1] + ", \"received\": " + to_string(countTrue) + ", \"failed\": " + to_string(countFalse) + ", ";
     } else if (commandName == COMMANDS[8].name) { // help
-        status = StatusCode::VALID_ok;
-        msg = Message::None;
-        int cmdCounter = sizeof(COMMANDS)/sizeof(COMMANDS[0]);
+		if((int)args.size() != 0){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		}else{
+			status = StatusCode::VALID_ok;
+			msg = Message::None;
+			int cmdCounter = sizeof(COMMANDS)/sizeof(COMMANDS[0]);
 
-        body += "\"commands\": [ ";
-        for (int i = 0; i < cmdCounter; i++) {
-            if (i != 0) {
-                body += ", ";
-            }
-            body += "{ \"name\": \"" + COMMANDS[i].name + "\", ";
-            body += "\"args\": [ ";
-            for (auto it = COMMANDS[i].arguments.begin(); it != COMMANDS[i].arguments.end(); it++) {
-                if (it != COMMANDS[i].arguments.begin()) {
-                    body += ", ";
-                }
-                body += '\"' + *it + '\"';
-            }
-            body += " ], \"description\": \"" + COMMANDS[i].description + "\" }";
-        }
-        body += " ], ";
+			body += "\"commands\": [ ";
+			for (int i = 0; i < cmdCounter; i++) {
+				if (i != 0) {
+					body += ", ";
+				}
+				body += "{ \"name\": \"" + COMMANDS[i].name + "\", ";
+				body += "\"args\": [ ";
+				for (auto it = COMMANDS[i].arguments.begin(); it != COMMANDS[i].arguments.end(); it++) {
+					if (it != COMMANDS[i].arguments.begin()) {
+						body += ", ";
+					}
+					body += '\"' + *it + '\"';
+				}
+				body += " ], \"description\": \"" + COMMANDS[i].description + "\" }";
+			}
+			body += " ], ";
+		}
     } else if (commandName == COMMANDS[9].name) { //broadcast
-        string message;
-        int countTrue = 0;
-        int countFalse = 0;
-        bool pinged(false);
 
         if((int)args.size() != 0){
             status = StatusCode::INVALID_badRequest;
             msg = Message::ArgumentError;
         } else {
+			string message;
+			int countTrue = 0;
+			int countFalse = 0;
+			bool pinged(false);
+			status = StatusCode::VALID_noContent;
+            msg = Message::None;
             for(auto it = nodes->begin(); it != nodes->end(); ++it){
+				pinged = false;
                 for(auto it2 = (*it)->m_values.begin(); it2 != (*it)->m_values.end(); it2++){
                     if (Manager::Get()->GetValueLabel(*it2) == "Library Version") {
                         int counter{ 60 };
@@ -938,31 +1082,82 @@ string Five::buildPhpMsg(string commandName, vector<string> args) {
                             }
                         }
                     }
-                    if(pinged){
-                        countTrue += 1;
-                    } else{
-                        countFalse += 1;
-                    }
+                }
+				if(pinged){
+					countTrue += 1;
+				} else{
+					countFalse += 1;
                 }
             }
             body += "\"successful nodes\": " + to_string(countTrue) + " \"failed nodes\": " + to_string(countFalse) + ", ";
 
         }
     } else if (commandName == COMMANDS[10].name) { // Restart.
-        status = StatusCode::VALID_ok;
-        msg = Message::None;
-        Manager::Get()->RemoveDriver(DRIVER_PATH);
-        cout << system("sudo systemctl restart minozw.service") << endl;
+		if((int)args.size() != 0){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		}else{
+			status = StatusCode::VALID_ok;
+			msg = Message::None;
+			Manager::Get()->RemoveDriver(DRIVER_PATH);
+			cout << system("sudo systemctl restart minozw.service") << endl;
+		}
     } else if (commandName == COMMANDS[11].name) { // Reset.
-        status = StatusCode::VALID_ok;
-        msg = Message::None;
-        Manager::Get()->RemoveDriver(DRIVER_PATH);
-        cout << system("./cpp/examples/bash/reset_key.sh") << endl;
-    }
+		if((int)args.size() != 0){
+			status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		}else{
+			status = StatusCode::VALID_ok;
+			msg = Message::None;
+			Manager::Get()->RemoveDriver(DRIVER_PATH);
+			cout << system("./cpp/examples/bash/reset_key.sh") << endl;
+		}
+    } else if (commandName == COMMANDS[13].name) { // Map
+		if ((int)args.size() != 1) {
+            status = StatusCode::INVALID_badRequest;
+            msg = Message::ArgumentError;
+		} else{
+			string array[nodes->size()][nodes->size()];
+			int i(0);
+			status = StatusCode::VALID_ok;
+			msg = Message::None;
+			body += "\"map\": [\n ";
+			for(auto it = nodes->begin(); it != nodes->end(); it++){
+				if(it != nodes->begin()){
+					body += "],\n ";
+				}
+					body += "[";
+				for(int j = 0; j < (int)nodes->size(); j++){
+					if(UT_isNodeIdExists(to_string(*((*it)->m_neighbors[j])))){
+						array[i][*((*it)->m_neighbors[j])] = "1";
+					} else{
+						array[i][*((*it)->m_neighbors[j])] = "0";
+					}
+					if(j != 0){
+						body += ",";
+					}
+					body += array[i][*((*it)->m_neighbors[j])];
+				}
+				//body += "]\n";
+				i++;
+			}
+			body += "]\n], ";
+		}
+	}
 
-    
     body += "\"status\": " + to_string(status);
-    body += ", \"message\": \"" + messages[msg] + "\" } }";
+	if(containsControllerType(driverState, ADD_RM_STATES)){
+		if(nodeInEx){
+    		body += ", \"message\": \"" + messages[msg] + "\", \"driverState\": \"In_" + STATES[driverState] + "\" } }";
+
+		}else {
+    		body += ", \"message\": \"" + messages[msg] + "\", \"driverState\": \"Ex_" + STATES[driverState] + "\" } }";
+
+		}
+	} else{
+    	body += ", \"message\": \"" + messages[msg] + "\", \"driverState\": \"" + STATES[driverState] + "\" } }";
+
+	}
 
     int body_length = body.length();
     body = "{ \"messageLength\": " + to_string(body_length + to_string(body_length).length()) + ", " + body;
@@ -1324,6 +1519,7 @@ void Five::statusObserver(list<NodeInfo*> *nodes) {
 						// }
 					}else {
 						(*it)->m_isDead = false;
+						Manager::Get()->GetNodeNeighbors(homeID, (*it)->m_nodeId, (*it)->m_neighbors);
 
 						// file.open(FAILED_NODE_PATH, ios::in);
 						// fstream temp;
@@ -1444,8 +1640,10 @@ void Five::onNotification(Notification const* notification, void* context) {
 		case Notification::Type_NodeQueriesComplete:
 			log += "[NODE_QUERIES_COMPLETE]           node " + to_string(valueID.GetNodeId()) + '\n';
 
-			node = getNode(valueID.GetNodeId(), nodes);
-			Manager::Get()->GetNodeNeighbors(homeID, valueID.GetNodeId(), node->m_neighbors);
+			if(valueID.GetNodeId() != 1){
+				node = getNode(valueID.GetNodeId(), nodes);
+				Manager::Get()->GetNodeNeighbors(homeID, valueID.GetNodeId(), node->m_neighbors);
+			}
 			break;
 		case Notification::Type_AllNodesQueriedSomeDead:
 			log += "\n🚨 [ALL_NODES_QUERIED_SOME_DEAD]  node " + to_string(valueID.GetNodeId()) + '\n'
@@ -1475,11 +1673,11 @@ void Five::onNotification(Notification const* notification, void* context) {
 	}
 
 	if (containsType(nType, Five::AliveNotification) || notification->GetNodeId() == 1) {
-		if ((containsType(nType, Five::AliveNotification) || (nodes->size() == 1 && nType == Notification::Type_AllNodesQueried)) && menuLocked) {
-			thread t1(menu);
-			t1.detach();
-			menuLocked = false;
-		}
+		// if ((containsType(nType, Five::AliveNotification) || (nodes->size() == 1 && nType == Notification::Type_AllNodesQueried)) && menuLocked) {
+		// 	thread t1(menu);
+		// 	t1.detach();
+		// 	menuLocked = false;
+		// }
 
 		if (containsNodeID(notification->GetNodeId(), (*Five::nodes))) {
 			NodeInfo* n = getNode(notification->GetNodeId(), Five::nodes);

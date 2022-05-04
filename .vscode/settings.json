@@ -13,7 +13,9 @@
         "initializer_list": "cpp",
         "utility": "cpp",
         "cstring": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "regex": "cpp",
+        "valarray": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

@@ -13,6 +13,7 @@ namespace Five {
     pthread_cond_t initCond = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t initMutex;
 
+
     const int ZWAVE_PORT = 5101;
     const int PHP_PORT = 5100;
     const char *LOCAL_ADDRESS = "127.0.0.1";
@@ -75,7 +76,8 @@ namespace Five {
         NodeNotFoundError, 
         InvalidArgument,
         None,
-        InvalidCommand
+        InvalidCommand,
+        ArgumentWrongType
     };
 
     const string messages[] = {
@@ -85,7 +87,8 @@ namespace Five {
         "NodeNotFoundError",
         "InvalidArgument",
         "",
-        "InvalidCommand"
+        "InvalidCommand",
+        "ArgumentWrongType"
     };
 
     struct Command {
@@ -131,6 +134,8 @@ namespace Five {
         Command{"_restart", {}, "Restart the process with Bash."},
         Command{"_reset", {}, "Remove log files, reset the ZWave driver and restart the process with Bash."},
         Command{"_setLvl", {"level"}, "[NONE, WARNING, INFO, DEBUG] Restart the ZWave driver with the selected level with Bash."},
+        Command{"map", {}, "Returns the Neighbors Map as response"},
+
     };
     
     const ValueID::ValueType NUMERIC_TYPES[] = {
@@ -142,10 +147,12 @@ namespace Five {
     };
 
     const string STATES[]{
-        "Normal", "Starting", "Cancel", "Error",
+        "Normal", "Starting", "Cancel", "Normal",
         "Waiting", "Sleeping", "InProgress", "Completed",
         "Failed", "NodeOK", "NodeFailed"
     };
+
+    const vector<Driver::ControllerState> ADD_RM_STATES = {Driver::ControllerState_Starting, Driver::ControllerState_Waiting, Driver::ControllerState_InProgress};
 
     const string NOTIFICATIONS[] {
         "VALUED_ADDED", "VALUE_REMOVED", "VALUE_CHANGED", "VALUE_REFRESHED", "GROUP",
@@ -172,7 +179,7 @@ namespace Five {
 
     // Config method
     
-    bool setSwitch(ValueID valueID, bool state);
+    bool setSwitch(ValueID valueID, string answer);
     bool setIntensity(ValueID valueID, int intensity);
     bool setHexColor(ValueID valueID, string hexColor);
     bool setList(ValueID valueID);
@@ -180,7 +187,7 @@ namespace Five {
     bool setDuration(ValueID valueID, int duration);
     bool setInt(ValueID valueId);
     bool setBool(ValueID valueId);
-    bool setButton(ValueID valueId);
+    bool setButton(ValueID valueId, string input);
 
     // Node methods
     
@@ -223,6 +230,7 @@ namespace Five {
     // Driver methods
     
     string getDriverData(uint32 homeID);
+    bool containsControllerType(Driver::ControllerState needle, vector<Driver::ControllerState> haystack);
 
     // Time methods
     
@@ -247,9 +255,12 @@ namespace Five {
 
     // Unit Tests
 
-    bool UT_isDigit(string arg);
+    bool UT_isInt(string arg);
     bool UT_isValueIdExists(string id, ValueID* ptr_valueID);
     bool UT_isNodeIdExists(string id);
+    bool UT_isDecimal(string arg);
+    bool UT_isBoolean(string arg);
+    bool UT_isButton(string arg);
 
     auto startedAt = getCurrentDatetime();
 }
